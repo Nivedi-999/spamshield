@@ -62,7 +62,7 @@ SpamShield is a sophisticated email security application that uses machine learn
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/Nivedi-999/SpamShield.git
+git clone https://github.com/Nivedi-999/spamshield.git
 cd SpamShield
 ```
 
