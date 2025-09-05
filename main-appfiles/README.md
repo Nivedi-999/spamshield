@@ -2,28 +2,6 @@
 
 SpamShield is a sophisticated email security application that uses machine learning, rule-based analysis, and Google's Gemini AI to detect phishing attempts in your Gmail inbox.
 
-## Working Demo
-<p align="center">
-  <img src="LoginPage.png">
-</p>
-
-<p>
-  <img src="DashboardPage.png">
-</p>
-
-<p align="center">
-  <img src="EmailPage.png">
-</p>
-
-<p>
-  <img src="EmailAIAnalyzerPage.png">
-</p>
-
-<p align="center">
-  <img src="SettingsPage.png">
-</p>
-
-
 ## Features
 
 - 🤖 **Multi-layered Detection System**
