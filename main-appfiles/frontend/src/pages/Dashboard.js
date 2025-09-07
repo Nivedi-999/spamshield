@@ -92,26 +92,22 @@ const Dashboard = () => {
     return date.toLocaleString();
   };
 
-  // Delete email permanently
+  // Delete email permanently (only from SpamShield DB)
   const handleDelete = async (id) => {
-    const confirmDelete = window.confirm(
-      'Are you sure you want to permanently delete this email?'
-    );
-    if (!confirmDelete) return;
+  const confirmDelete = window.confirm(
+    "Are you sure you want to permanently delete this email from SpamShield?"
+  );
+  if (!confirmDelete) return;
 
-    try {
-      const response = await fetch(`/api/emails/${id}`, { method: 'DELETE' }); // Adjust API route if needed
-      if (response.ok) {
-        setEmails((prevEmails) => prevEmails.filter((email) => email.id !== id));
-        alert('Email deleted permanently.');
-      } else {
-        alert('Failed to delete the email.');
-      }
-    } catch (error) {
-      console.error('Error deleting email:', error);
-      alert('An error occurred while deleting. Please try again later.');
-    }
-  };
+  try {
+    await deleteEmail(id); 
+    setEmails((prevEmails) => prevEmails.filter((email) => email.id !== id));
+    alert("Email deleted from SpamShield.");
+  } catch (error) {
+    console.error("Error deleting email:", error);
+    alert("Failed to delete the email. Please try again later.");
+  }
+};
 
   // Chart data for pie charts
   const chartData = {
