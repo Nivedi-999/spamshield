@@ -12,24 +12,16 @@ import {
   TableHead,
   TableRow,
   TablePagination,
-  Chip,
   Button,
   CircularProgress,
   Card,
   CardContent,
-  Divider,
 } from '@mui/material';
-import {
-  Email as EmailIcon,
-  Warning as WarningIcon,
-  CheckCircle as CheckCircleIcon,
-  Refresh as RefreshIcon,
-} from '@mui/icons-material';
-
 import { getEmails, getEmailStats } from '../services/emailService';
-
+import { deleteEmail } from "../services/emailService";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
+import EmailStatsChart from '../components/EmailStats'; 
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -42,11 +34,6 @@ const Dashboard = () => {
     total_emails: 0,
     phishing_emails: 0,
     phishing_percentage: 0,
-    detection_methods: {
-      ml: 0,
-      ai: 0,
-      rules: 0,
-    },
   });
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -92,49 +79,45 @@ const Dashboard = () => {
     return date.toLocaleString();
   };
 
-  // Delete email permanently
+  // Delete email permanently (only from SpamShield DB)
   const handleDelete = async (id) => {
     const confirmDelete = window.confirm(
-      'Are you sure you want to permanently delete this email?'
+      "Are you sure you want to permanently delete this email from SpamShield?"
     );
     if (!confirmDelete) return;
 
     try {
-      const response = await fetch(`/api/emails/${id}`, { method: 'DELETE' }); // Adjust API route if needed
-      if (response.ok) {
-        setEmails((prevEmails) => prevEmails.filter((email) => email.id !== id));
-        alert('Email deleted permanently.');
-      } else {
-        alert('Failed to delete the email.');
-      }
+      await deleteEmail(id);
+      setEmails((prevEmails) => prevEmails.filter((email) => email.id !== id));
+      alert("Email deleted from SpamShield.");
     } catch (error) {
-      console.error('Error deleting email:', error);
-      alert('An error occurred while deleting. Please try again later.');
+      console.error("Error deleting email:", error);
+      alert("Failed to delete the email. Please try again later.");
     }
   };
+// Chart data for pie charts
+const chartData = {
+  labels: ['Safe Emails', 'Phishing Emails'],
+  datasets: [
+    {
+      data: [stats.total_emails - stats.phishing_emails, stats.phishing_emails],
+      backgroundColor: ['#4caf50', '#f44336'],
+      borderWidth: 1,
+    },
+  ],
+};
 
-  // Chart data for pie charts
-  const chartData = {
-    labels: ['Safe Emails', 'Phishing Emails'],
-    datasets: [
-      {
-        data: [stats.total_emails - stats.phishing_emails, stats.phishing_emails],
-        backgroundColor: ['#4caf50', '#f44336'],
-        borderWidth: 1,
-      },
-    ],
-  };
+const detectionMethodsData = {
+  labels: ['ML Model', 'AI Analysis', 'Rule-based'],
+  datasets: [
+    {
+      data: [stats.detection_methods.ml, stats.detection_methods.ai, stats.detection_methods.rules],
+      backgroundColor: ['#2196f3', '#9c27b0', '#ff9800'],
+      borderWidth: 1,
+    },
+  ],
+};
 
-  const detectionMethodsData = {
-    labels: ['ML Model', 'AI Analysis', 'Rule-based'],
-    datasets: [
-      {
-        data: [stats.detection_methods.ml, stats.detection_methods.ai, stats.detection_methods.rules],
-        backgroundColor: ['#2196f3', '#9c27b0', '#ff9800'],
-        borderWidth: 1,
-      },
-    ],
-  };
 
   return (
     <>
@@ -145,7 +128,7 @@ const Dashboard = () => {
 
         {/* Stats Grid */}
         <Grid container spacing={3} mb={3}>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={10} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Typography variant="h6">Total Emails</Typography>
@@ -153,7 +136,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={10} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Typography variant="h6">Phishing Emails</Typography>
@@ -161,7 +144,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={10} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Typography variant="h6">Safe Emails</Typography>
@@ -169,7 +152,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={10} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Typography variant="h6">Phishing Rate</Typography>
@@ -209,29 +192,41 @@ const Dashboard = () => {
           </Grid>
         </Grid>
 
-        {/* Charts */}
         <Grid container spacing={3} mb={3} justifyContent="center">
   <Grid item xs={10} md={5}>
     <Typography variant="h6" mb={2}>
       Email Safety Overview
     </Typography>
-    {stats.total_emails > 0 ? (
-      <Pie data={chartData} />
-    ) : (
-      <Typography>No email data available</Typography>
-    )}
+    <Box sx={{ width: "100%", height: 300 }}>
+      {stats.total_emails > 0 ? (
+        <Pie
+          data={chartData}
+          width={300}
+          height={300}
+          options={{
+            maintainAspectRatio: false,
+            plugins: { legend: { position: "bottom" } },
+          }}
+        />
+      ) : (
+        <Typography>No email data available</Typography>
+      )}
+    </Box>
   </Grid>
 
   <Grid item xs={10} md={5} sx={{ ml: { xs: 0, md: 2 } }}>
-    <Typography variant="h6" mb={2}>
-      Detection Methods
-    </Typography>
-    {stats.phishing_emails > 0 ? (
-      <Pie data={detectionMethodsData} />
+  <Typography variant="h6" mb={2}>
+    Emails Over Time
+  </Typography>
+  <Box sx={{ width: "100%", height: 300 }}>
+    {stats.trends && stats.trends.length > 0 ? (
+      <EmailStatsChart data={stats.trends} />
     ) : (
-      <Typography>No phishing emails detected</Typography>
+      <Typography>No trend data available</Typography>
     )}
-  </Grid>
+  </Box>
+</Grid>
+
 </Grid>
 
 
@@ -272,7 +267,7 @@ const Dashboard = () => {
                   <TableCell>Received</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Score</TableCell>
-                  <TableCell>Action</TableCell> {/* New Action column */}
+                  <TableCell>Action</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

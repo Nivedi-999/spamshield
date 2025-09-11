@@ -133,4 +133,19 @@ export const analyzeEmailWithAI = async (emailId, onChunk, onError, onComplete) 
   } catch (error) {
     onError(error.message);
   }
-}; 
+};
+
+/**
+ * Delete a single email from SpamShield DB (not Gmail)
+ * @param {number} id - Email ID
+ * @returns {Promise<Object>} Delete result
+ */
+export const deleteEmail = async (id) => {
+  try {
+    const response = await axios.delete(`${API_URL}/emails/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error deleting email ${id}:`, error);
+    throw error;
+  }
+};

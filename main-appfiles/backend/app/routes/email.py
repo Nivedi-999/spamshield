@@ -8,6 +8,8 @@ import json
 import google.generativeai as genai
 import os
 from dotenv import load_dotenv
+from sqlalchemy import func
+from datetime import datetime, timedelta
 
 # Load environment variables
 load_dotenv()
@@ -363,3 +365,47 @@ def delete_email(email_id):
 @login_required
 def delete_email_post(email_id):
     return delete_email(email_id)
+@email_bp.route('/stats')
+@login_required
+def email_stats():
+    """
+    Returns daily phishing vs safe email counts for the last 7 days
+    """
+    today = datetime.utcnow().date()
+    last_week = today - timedelta(days=6)
+
+    # Query emails grouped by date and phishing status
+    results = (
+        db.session.query(
+            func.date(Email.received_date).label("date"),
+            Email.is_phishing,
+            func.count(Email.id).label("count")
+        )
+        .filter(Email.user_id == current_user.id)
+        .filter(Email.received_date >= last_week)
+        .group_by(func.date(Email.received_date), Email.is_phishing)
+        .all()
+    )
+
+    # Format results
+    stats = {}
+    for row in results:
+        date_str = row.date.isoformat()
+        if date_str not in stats:
+            stats[date_str] = {"phishing": 0, "safe": 0}
+        if row.is_phishing:
+            stats[date_str]["phishing"] = row.count
+        else:
+            stats[date_str]["safe"] = row.count
+
+    # Ensure all days are present
+    data = []
+    for i in range(7):
+        day = (last_week + timedelta(days=i)).isoformat()
+        data.append({
+            "date": day,
+            "phishing": stats.get(day, {}).get("phishing", 0),
+            "safe": stats.get(day, {}).get("safe", 0),
+        })
+
+    return jsonify(data)
