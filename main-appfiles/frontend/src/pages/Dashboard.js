@@ -17,11 +17,10 @@ import {
   Card,
   CardContent,
 } from '@mui/material';
-import { getEmails, getEmailStats } from '../services/emailService';
-import { deleteEmail } from "../services/emailService";
+import { getEmails, getEmailStats, deleteEmail } from '../services/emailService';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
-import EmailStatsChart from '../components/EmailStats'; 
+import EmailStatsChart from '../components/EmailStats';  // ✅ make sure filename matches
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -34,6 +33,7 @@ const Dashboard = () => {
     total_emails: 0,
     phishing_emails: 0,
     phishing_percentage: 0,
+    trends: [], // ✅ for line chart
   });
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -82,42 +82,31 @@ const Dashboard = () => {
   // Delete email permanently (only from SpamShield DB)
   const handleDelete = async (id) => {
     const confirmDelete = window.confirm(
-      "Are you sure you want to permanently delete this email from SpamShield?"
+      'Are you sure you want to permanently delete this email from SpamShield?'
     );
     if (!confirmDelete) return;
 
     try {
       await deleteEmail(id);
       setEmails((prevEmails) => prevEmails.filter((email) => email.id !== id));
-      alert("Email deleted from SpamShield.");
+      alert('Email deleted from SpamShield.');
     } catch (error) {
-      console.error("Error deleting email:", error);
-      alert("Failed to delete the email. Please try again later.");
+      console.error('Error deleting email:', error);
+      alert('Failed to delete the email. Please try again later.');
     }
   };
-// Chart data for pie charts
-const chartData = {
-  labels: ['Safe Emails', 'Phishing Emails'],
-  datasets: [
-    {
-      data: [stats.total_emails - stats.phishing_emails, stats.phishing_emails],
-      backgroundColor: ['#4caf50', '#f44336'],
-      borderWidth: 1,
-    },
-  ],
-};
 
-const detectionMethodsData = {
-  labels: ['ML Model', 'AI Analysis', 'Rule-based'],
-  datasets: [
-    {
-      data: [stats.detection_methods.ml, stats.detection_methods.ai, stats.detection_methods.rules],
-      backgroundColor: ['#2196f3', '#9c27b0', '#ff9800'],
-      borderWidth: 1,
-    },
-  ],
-};
-
+  // Chart data for pie chart
+  const chartData = {
+    labels: ['Safe Emails', 'Phishing Emails'],
+    datasets: [
+      {
+        data: [stats.total_emails - stats.phishing_emails, stats.phishing_emails],
+        backgroundColor: ['#4caf50', '#f44336'],
+        borderWidth: 1,
+      },
+    ],
+  };
 
   return (
     <>
@@ -148,7 +137,9 @@ const detectionMethodsData = {
             <Card>
               <CardContent>
                 <Typography variant="h6">Safe Emails</Typography>
-                <Typography variant="h4">{stats.total_emails - stats.phishing_emails}</Typography>
+                <Typography variant="h4">
+                  {stats.total_emails - stats.phishing_emails}
+                </Typography>
               </CardContent>
             </Card>
           </Grid>
@@ -192,43 +183,42 @@ const detectionMethodsData = {
           </Grid>
         </Grid>
 
+        {/* Charts */}
         <Grid container spacing={3} mb={3} justifyContent="center">
-  <Grid item xs={10} md={5}>
-    <Typography variant="h6" mb={2}>
-      Email Safety Overview
-    </Typography>
-    <Box sx={{ width: "100%", height: 300 }}>
-      {stats.total_emails > 0 ? (
-        <Pie
-          data={chartData}
-          width={300}
-          height={300}
-          options={{
-            maintainAspectRatio: false,
-            plugins: { legend: { position: "bottom" } },
-          }}
-        />
-      ) : (
-        <Typography>No email data available</Typography>
-      )}
-    </Box>
-  </Grid>
+          <Grid item xs={10} md={5}>
+            <Typography variant="h6" mb={2}>
+              Email Safety Overview
+            </Typography>
+            <Box sx={{ width: '100%', height: 300 }}>
+              {stats.total_emails > 0 ? (
+                <Pie
+                  data={chartData}
+                  width={300}
+                  height={300}
+                  options={{
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                  }}
+                />
+              ) : (
+                <Typography>No email data available</Typography>
+              )}
+            </Box>
+          </Grid>
 
-  <Grid item xs={10} md={5} sx={{ ml: { xs: 0, md: 2 } }}>
-  <Typography variant="h6" mb={2}>
-    Emails Over Time
-  </Typography>
-  <Box sx={{ width: "100%", height: 300 }}>
-    {stats.trends && stats.trends.length > 0 ? (
-      <EmailStatsChart data={stats.trends} />
-    ) : (
-      <Typography>No trend data available</Typography>
-    )}
-  </Box>
-</Grid>
-
-</Grid>
-
+          <Grid item xs={10} md={5} sx={{ ml: { xs: 0, md: 2 } }}>
+            <Typography variant="h6" mb={2}>
+              Emails Over Time
+            </Typography>
+            <Box sx={{ width: '100%', height: 300 }}>
+              {stats.trends && stats.trends.length > 0 ? (
+                <EmailStatsChart data={stats.trends} />
+              ) : (
+                <Typography>No trend data available</Typography>
+              )}
+            </Box>
+          </Grid>
+        </Grid>
 
         {/* Filter Buttons */}
         <Box mb={2}>
@@ -308,7 +298,9 @@ const detectionMethodsData = {
                         onClick={() => handleEmailClick(email.id)}
                         sx={{ cursor: 'pointer' }}
                       >
-                        {email.is_phishing ? `${email.phishing_score.toFixed(1)}%` : 'N/A'}
+                        {email.is_phishing
+                          ? `${email.phishing_score.toFixed(1)}%`
+                          : 'N/A'}
                       </TableCell>
                       <TableCell>
                         <Button

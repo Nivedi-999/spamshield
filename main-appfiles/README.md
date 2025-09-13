@@ -1,28 +1,6 @@
-# PhishDeezNuts - AI-Powered Phishing Email Detection
+#SpamShield - AI-Powered Phishing Email Detection
 
-PhishDeezNuts is a sophisticated email security application that uses machine learning, rule-based analysis, and Google's Gemini AI to detect phishing attempts in your Gmail inbox.
-
-## Working Demo
-<p align="center">
-  <img src="LoginPage.png">
-</p>
-
-<p>
-  <img src="DashboardPage.png">
-</p>
-
-<p align="center">
-  <img src="EmailPage.png">
-</p>
-
-<p>
-  <img src="EmailAIAnalyzerPage.png">
-</p>
-
-<p align="center">
-  <img src="SettingsPage.png">
-</p>
-
+SpamShield is a sophisticated email security application that uses machine learning, rule-based analysis, and Google's Gemini AI to detect phishing attempts in your Gmail inbox.
 
 ## Features
 
@@ -62,8 +40,8 @@ PhishDeezNuts is a sophisticated email security application that uses machine le
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/susybegula/PhishDeezNuts.git
-cd PhishDeezNuts
+git clone https://github.com/Nivedi-999/spamshield.git
+cd SpamShield
 ```
 
 ### 2. Backend Setup
@@ -205,12 +183,3 @@ npm test
 - OAuth2 is used for secure authentication
 - Session cookies are secure and HTTP-only
 - Regular security audits are recommended
-
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-
-## Star Nuts
-[![Star History Chart](https://api.star-history.com/svg?repos=SusyBegula/PhishDeezNuts&type=Date)](https://star-history.com/#SusyBegula/PhishDeezNuts&Date)
