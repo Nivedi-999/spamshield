@@ -28,11 +28,6 @@ const DashboardStats = ({ stats }) => {
     phishingCount: 0,
     safeCount: 0,
     suspiciousCount: 0,
-    detectionMethods: [
-      { name: 'Machine Learning', value: 0 },
-      { name: 'Rule-based', value: 0 },
-      { name: 'AI Analysis', value: 0 }
-    ],
     timeData: [
       { name: 'Last 7 Days', phishing: 0, safe: 0 },
       { name: 'Last 30 Days', phishing: 0, safe: 0 },
@@ -121,45 +116,6 @@ const DashboardStats = ({ stats }) => {
                     }}
                   />
                 </PieChart>
-              </ResponsiveContainer>
-            </Box>
-          </Paper>
-        </Grid>
-        
-        {/* Detection Methods */}
-        <Grid item xs={12} md={4}>
-          <Paper 
-            elevation={3} 
-            sx={{ 
-              p: 3, 
-              height: '100%',
-              backgroundColor: colors.background,
-              border: `1px solid ${colors.grid}`
-            }}
-          >
-            <Typography variant="h6" gutterBottom>
-              Detection Methods
-            </Typography>
-            <Box sx={{ mt: 2, height: 300 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={data.detectionMethods}
-                  layout="vertical"
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
-                  <XAxis type="number" stroke={colors.text} />
-                  <YAxis dataKey="name" type="category" stroke={colors.text} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: colors.background,
-                      borderColor: colors.grid,
-                      color: colors.text
-                    }}
-                  />
-                  <Legend />
-                  <Bar dataKey="value" name="Emails Detected" fill={colors.primary} />
-                </BarChart>
               </ResponsiveContainer>
             </Box>
           </Paper>

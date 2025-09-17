@@ -4,6 +4,8 @@ from .. import db
 from ..models import Email
 from ..services.email_service import fetch_emails, get_email_details
 from ..services.phishing_detection import analyze_email
+from sqlalchemy import func, case
+from datetime import datetime, timedelta
 import json
 import google.generativeai as genai
 import os
