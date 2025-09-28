@@ -9,15 +9,61 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
  * @param {Object} filters - Filter options
  * @returns {Promise<Object>} Paginated emails
  */
+
+/**
+ * Get all emails with pagination + advanced filters
+ * 
+ * Available filters:
+ * - from: sender email
+ * - subject: subject text (partial match)
+ * - date_from: start date (YYYY-MM-DD)
+ * - date_to: end date (YYYY-MM-DD)
+ * - status: phishing | safe | all
+ */
 export const getEmails = async (page = 1, perPage = 20, filters = {}) => {
   try {
+    // Clean filters
+    const cleanedFilters = {};
+    Object.keys(filters).forEach(key => {
+      if (filters[key] !== null && filters[key] !== undefined) {
+        cleanedFilters[key] = filters[key];
+      }
+    });
+
+    // Map frontend filters to backend query params
+    const mappedFilters = {
+      query: filters.query || filters.searchTerm || undefined, // Accept both query or searchTerm
+      from: filters.sender || undefined,
+      to: filters.recipient || undefined,
+      subject: filters.subject || undefined,
+      status: filters.phishingStatus !== 'all' ? filters.phishingStatus : undefined,
+      detection_method: filters.detectionMethod !== 'all' ? filters.detectionMethod : undefined,
+      has_attachment: filters.hasAttachment !== 'all' ? filters.hasAttachment : undefined,
+      min_score: filters.phishingScoreRange ? filters.phishingScoreRange[0] : undefined,
+      max_score: filters.phishingScoreRange ? filters.phishingScoreRange[1] : undefined,
+      date_from: filters.dateFrom ? filters.dateFrom.toISOString().split('T')[0] : undefined,
+      date_to: filters.dateTo ? filters.dateTo.toISOString().split('T')[0] : undefined,
+      tags: filters.tags && filters.tags.length > 0 ? filters.tags.join(',') : undefined
+    };
+
+    // Drop undefined values
+    const cleanedParams = {};
+    Object.keys(mappedFilters).forEach(key => {
+      if (mappedFilters[key] !== undefined && mappedFilters[key] !== null) {
+        cleanedParams[key] = mappedFilters[key];
+      }
+    });
+
+    // Construct query string
     const params = new URLSearchParams({
       page,
       per_page: perPage,
-      ...filters
+      ...cleanedParams
     });
-    
-    const response = await axios.get(`${API_URL}/emails?${params}`);
+
+    // ✅ Add trailing slash to avoid 308 redirect
+    const response = await axios.get(`${API_URL}/emails/?${params}`);
+
     return response.data;
   } catch (error) {
     console.error('Error fetching emails:', error);
@@ -133,19 +179,4 @@ export const analyzeEmailWithAI = async (emailId, onChunk, onError, onComplete) 
   } catch (error) {
     onError(error.message);
   }
-};
-
-/**
- * Delete a single email from SpamShield DB (not Gmail)
- * @param {number} id - Email ID
- * @returns {Promise<Object>} Delete result
- */
-export const deleteEmail = async (id) => {
-  try {
-    const response = await axios.delete(`${API_URL}/emails/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error(`Error deleting email ${id}:`, error);
-    throw error;
-  }
-};
+}; 

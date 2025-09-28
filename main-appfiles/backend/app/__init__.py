@@ -1,8 +1,7 @@
 from flask import Flask
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager  # type: ignore
-from flask_migrate import Migrate   # type: ignore
+from flask_login import LoginManager
 import os
 from dotenv import load_dotenv
 
@@ -14,9 +13,6 @@ db = SQLAlchemy()
 
 # Initialize LoginManager
 login_manager = LoginManager()
-
-# Initialize Migrate
-migrate = Migrate()  # Add this line
 
 def create_app():
     app = Flask(__name__)
@@ -45,9 +41,8 @@ def create_app():
     # Initialize extensions with app
     db.init_app(app)
     login_manager.init_app(app)
-    migrate.init_app(app, db) 
-
-    # Import and register blueprints after db initialization
+    
+    # Import and register blueprints
     from .routes.auth import auth_bp
     from .routes.email import email_bp
     from .routes.api import api_bp
@@ -58,5 +53,6 @@ def create_app():
     
     # Create database tables
     with app.app_context():
-        db.create_all() 
-    return app
+        db.create_all()
+    
+    return app 

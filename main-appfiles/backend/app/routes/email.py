@@ -4,12 +4,11 @@ from .. import db
 from ..models import Email
 from ..services.email_service import fetch_emails, get_email_details
 from ..services.phishing_detection import analyze_email
-from sqlalchemy import func, case
-from datetime import datetime, timedelta
 import json
 import google.generativeai as genai
 import os
 from dotenv import load_dotenv
+from sqlalchemy import or_
 
 # Load environment variables
 load_dotenv()
@@ -25,11 +24,24 @@ def get_emails():
     """Get all emails for the current user with pagination"""
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
+    search_term = request.args.get('searchTerm', '') or request.args.get('query', '')
+    search_term = search_term.strip().lower() if search_term else '' 
     
     # Filter options
     is_phishing = request.args.get('is_phishing', None)
     if is_phishing is not None:
         is_phishing = is_phishing.lower() == 'true'
+    
+    # New advanced search filters
+    sender_filter = request.args.get('from', None)
+    subject_filter = request.args.get('subject', None)
+    date_from = request.args.get('date_from', None)
+    date_to = request.args.get('date_to', None)
+    status = request.args.get('status', None)  # 'phishing', 'safe', 'all'
+    detection_method = request.args.get('detection_method', None)
+    has_attachment = request.args.get('has_attachment', None)
+    if has_attachment is not None:
+       has_attachment = has_attachment.lower() == 'true'
     
     # Build query
     query = Email.query.filter_by(user_id=current_user.id)
@@ -37,13 +49,52 @@ def get_emails():
     # Apply filters
     if is_phishing is not None:
         query = query.filter_by(is_phishing=is_phishing)
-    
+
+    # New advanced filters
+    if sender_filter:
+       query = query.filter(Email.sender.ilike(f"%{sender_filter}%"))
+
+    if subject_filter:
+       query = query.filter(Email.subject.ilike(f"%{subject_filter}%"))
+
+    if date_from:
+       query = query.filter(Email.received_date >= date_from)
+
+    if date_to:
+       query = query.filter(Email.received_date <= date_to)
+
+    if status:
+       status = status.lower()
+    if status == 'phishing':
+        query = query.filter_by(is_phishing=True)
+    elif status == 'safe':
+        query = query.filter_by(is_phishing=False)
+
+    if detection_method:
+      query = query.filter_by(detection_method=detection_method)
+
+    if has_attachment is not None:
+      query = query.filter_by(has_attachment=has_attachment)
+
+    keywords = search_term.split() if search_term else []  # <-- Change done here
+    if keywords:  # only apply filter if there are keywords
+        query = query.filter(
+            or_(*[
+                or_(
+                    Email.subject.ilike(f"%{word}%"),
+                    Email.sender.ilike(f"%{word}%"),
+                    Email.body_text.ilike(f"%{word}%"),
+                    Email.body_html.ilike(f"%{word}%")
+                ) for word in keywords
+            ])
+        )
+
     # Order by received date (newest first)
     query = query.order_by(Email.received_date.desc())
     
     # Paginate
     emails_pagination = query.paginate(page=page, per_page=per_page)
-    
+
     # Format response
     emails = []
     for email in emails_pagination.items:
@@ -80,6 +131,7 @@ def get_email(email_id):
         'subject': email.subject,
         'body_text': email.body_text,
         'body_html': email.body_html,
+        'tags':email.tags,
         'received_date': email.received_date.isoformat() if email.received_date else None,
         'is_phishing': email.is_phishing,
         'phishing_score': email.phishing_score,

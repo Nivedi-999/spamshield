@@ -84,15 +84,29 @@ const AdvancedSearch = ({ onSearch }) => {
   };
 
   const handleSearch = () => {
-    // Combine search term and filters
-    const searchParams = {
-      searchTerm,
-      ...filters
-    };
-    
-    // Call the parent component's search handler
-    onSearch(searchParams);
+  // Avoid fetching all when nothing is set
+  if (
+    !searchTerm.trim() &&
+    Object.values(filters).every(
+      v =>
+        v === 'all' ||
+        v === null ||
+        (Array.isArray(v) && !v.length) ||
+        (Array.isArray(v) && v[0] === 0 && v[1] === 100)
+    )
+  ) {
+    return; // Or alert('Enter a search term or filter');
+  }
+
+  // Combine search term and filters
+  const searchParams = {
+    ...filters,
+    query: searchTerm   // 🔹 changed from "searchTerm"
   };
+
+  // Call the parent component's search handler
+  onSearch(searchParams);
+};
 
   return (
     <Paper elevation={3} sx={{ mb: 4, p: 2, borderRadius: 2 }}>

@@ -18,17 +18,13 @@ import {
   Menu,
   MenuItem,
   Button,
-  Tooltip,
   useTheme,
-  alpha
 } from '@mui/material';
 import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
-  Settings as SettingsIcon,
   Refresh as RefreshIcon,
   ExitToApp as LogoutIcon,
-  Search as SearchIcon
 } from '@mui/icons-material';
 import { logout } from '../services/authService';
 import { syncEmails } from '../services/emailService';
@@ -45,17 +41,9 @@ const Layout = ({ user, children }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [syncing, setSyncing] = useState(false);
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
-
-  const handleProfileMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleProfileMenuClose = () => {
-    setAnchorEl(null);
-  };
+  const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
+  const handleProfileMenuOpen = (event) => setAnchorEl(event.currentTarget);
+  const handleProfileMenuClose = () => setAnchorEl(null);
 
   const handleLogout = () => {
     handleProfileMenuClose();
@@ -66,7 +54,6 @@ const Layout = ({ user, children }) => {
     try {
       setSyncing(true);
       await syncEmails();
-      // Refresh the current page
       window.location.reload();
     } catch (error) {
       console.error('Error syncing emails:', error);
@@ -76,42 +63,33 @@ const Layout = ({ user, children }) => {
   };
 
   const drawer = (
-    <Box sx={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      height: '100%',
-      background: theme.palette.mode === 'dark' 
-        ? 'linear-gradient(180deg, #1e1e1e 0%, #252525 100%)' 
-        : 'linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%)'
-    }}>
-      <Toolbar sx={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        py: 2
-      }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        background:
+          theme.palette.mode === 'dark'
+            ? 'linear-gradient(180deg, #1e1e1e 0%, #252525 100%)'
+            : 'linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%)',
+      }}
+    >
+      <Toolbar sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 2 }}>
         <Logo size="medium" />
       </Toolbar>
       <Divider />
-      
-      {/* User Profile Section */}
-      <Box sx={{ 
-        p: 2, 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center',
-        mb: 2
-      }}>
-        <Avatar 
-          src={user?.profile_pic} 
-          alt={user?.name || 'User'} 
-          sx={{ 
-            width: 64, 
-            height: 64, 
+
+      <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
+        <Avatar
+          src={user?.profile_pic}
+          alt={user?.name || 'User'}
+          sx={{
+            width: 64,
+            height: 64,
             mb: 1,
             boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
             border: '2px solid',
-            borderColor: 'primary.main'
+            borderColor: 'primary.main',
           }}
         />
         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
@@ -121,135 +99,45 @@ const Layout = ({ user, children }) => {
           {user?.email}
         </Typography>
       </Box>
-      
+
       <Divider sx={{ mb: 2 }} />
-      
+
       <List sx={{ flexGrow: 1, px: 1 }}>
         <ListItem disablePadding sx={{ mb: 1 }}>
-          <ListItemButton 
+          <ListItemButton
             selected={location.pathname === '/dashboard' || location.pathname === '/'}
             onClick={() => navigate('/dashboard')}
-            sx={{ 
+            sx={{
               borderRadius: 2,
               '&.Mui-selected': {
-                background: theme.palette.mode === 'dark' 
-                  ? 'linear-gradient(45deg, rgba(58, 123, 213, 0.2) 0%, rgba(0, 210, 255, 0.2) 100%)'
-                  : 'linear-gradient(45deg, rgba(58, 123, 213, 0.1) 0%, rgba(0, 210, 255, 0.1) 100%)',
+                background:
+                  theme.palette.mode === 'dark'
+                    ? 'linear-gradient(45deg, rgba(58, 123, 213, 0.2) 0%, rgba(0, 210, 255, 0.2) 100%)'
+                    : 'linear-gradient(45deg, rgba(58, 123, 213, 0.1) 0%, rgba(0, 210, 255, 0.1) 100%)',
                 '&:hover': {
-                  background: theme.palette.mode === 'dark' 
-                    ? 'linear-gradient(45deg, rgba(58, 123, 213, 0.3) 0%, rgba(0, 210, 255, 0.3) 100%)'
-                    : 'linear-gradient(45deg, rgba(58, 123, 213, 0.2) 0%, rgba(0, 210, 255, 0.2) 100%)',
-                }
-              }
+                  background:
+                    theme.palette.mode === 'dark'
+                      ? 'linear-gradient(45deg, rgba(58, 123, 213, 0.3) 0%, rgba(0, 210, 255, 0.3) 100%)'
+                      : 'linear-gradient(45deg, rgba(58, 123, 213, 0.2) 0%, rgba(0, 210, 255, 0.2) 100%)',
+                },
+              },
             }}
           >
             <ListItemIcon>
-              <DashboardIcon color={location.pathname === '/dashboard' || location.pathname === '/' ? 'primary' : 'inherit'} />
+              <DashboardIcon
+                color={location.pathname === '/dashboard' || location.pathname === '/' ? 'primary' : 'inherit'}
+              />
             </ListItemIcon>
-            <ListItemText 
-              primary="Dashboard" 
-              primaryTypographyProps={{ 
-                fontWeight: location.pathname === '/dashboard' || location.pathname === '/' ? 600 : 400 
-              }}
-            />
-          </ListItemButton>
-        </ListItem>
-        
-        <ListItem disablePadding sx={{ mb: 1 }}>
-          <ListItemButton 
-            selected={location.pathname === '/settings'}
-            onClick={() => navigate('/settings')}
-            sx={{ 
-              borderRadius: 2,
-              '&.Mui-selected': {
-                background: theme.palette.mode === 'dark' 
-                  ? 'linear-gradient(45deg, rgba(58, 123, 213, 0.2) 0%, rgba(0, 210, 255, 0.2) 100%)'
-                  : 'linear-gradient(45deg, rgba(58, 123, 213, 0.1) 0%, rgba(0, 210, 255, 0.1) 100%)',
-                '&:hover': {
-                  background: theme.palette.mode === 'dark' 
-                    ? 'linear-gradient(45deg, rgba(58, 123, 213, 0.3) 0%, rgba(0, 210, 255, 0.3) 100%)'
-                    : 'linear-gradient(45deg, rgba(58, 123, 213, 0.2) 0%, rgba(0, 210, 255, 0.2) 100%)',
-                }
-              }
-            }}
-          >
-            <ListItemIcon>
-              <SettingsIcon color={location.pathname === '/settings' ? 'primary' : 'inherit'} />
-            </ListItemIcon>
-            <ListItemText 
-              primary="Settings" 
-              primaryTypographyProps={{ 
-                fontWeight: location.pathname === '/settings' ? 600 : 400 
-              }}
-            />
-          </ListItemButton>
-        </ListItem>
-        
-        <ListItem disablePadding sx={{ mb: 1 }}>
-          <ListItemButton 
-            selected={location.pathname === '/incomplete-drafts'}
-            onClick={() => {
-              // TODO: Add navigation or action logic here
-            }}
-            sx={{ 
-              borderRadius: 2,
-              '&.Mui-selected': {
-                background: theme.palette.mode === 'dark' 
-                  ? 'linear-gradient(45deg, rgba(58, 123, 213, 0.2) 0%, rgba(0, 210, 255, 0.2) 100%)'
-                  : 'linear-gradient(45deg, rgba(58, 123, 213, 0.1) 0%, rgba(0, 210, 255, 0.1) 100%)',
-                '&:hover': {
-                  background: theme.palette.mode === 'dark' 
-                    ? 'linear-gradient(45deg, rgba(58, 123, 213, 0.3) 0%, rgba(0, 210, 255, 0.3) 100%)'
-                    : 'linear-gradient(45deg, rgba(58, 123, 213, 0.2) 0%, rgba(0, 210, 255, 0.2) 100%)',
-                }
-              }
-            }}
-          >
-            <ListItemIcon>
-              {/* Add an appropriate icon here if desired */}
-            </ListItemIcon>
-            <ListItemText 
-              primary="Incomplete Drafts" 
-              primaryTypographyProps={{ 
-                fontWeight: location.pathname === '/incomplete-drafts' ? 600 : 400 
-              }}
-            />
-          </ListItemButton>
-        </ListItem>
-        
-        <ListItem disablePadding sx={{ mb: 1 }}>
-          <ListItemButton 
-            selected={location.pathname === '/no-reply'}
-            onClick={() => {
-              // TODO: Add navigation or action logic here
-            }}
-            sx={{ 
-              borderRadius: 2,
-              '&.Mui-selected': {
-                background: theme.palette.mode === 'dark' 
-                  ? 'linear-gradient(45deg, rgba(58, 123, 213, 0.2) 0%, rgba(0, 210, 255, 0.2) 100%)'
-                  : 'linear-gradient(45deg, rgba(58, 123, 213, 0.1) 0%, rgba(0, 210, 255, 0.1) 100%)',
-                '&:hover': {
-                  background: theme.palette.mode === 'dark' 
-                    ? 'linear-gradient(45deg, rgba(58, 123, 213, 0.3) 0%, rgba(0, 210, 255, 0.3) 100%)'
-                    : 'linear-gradient(45deg, rgba(58, 123, 213, 0.2) 0%, rgba(0, 210, 255, 0.2) 100%)',
-                }
-              }
-            }}
-          >
-            <ListItemIcon>
-              {/* Add an appropriate icon here if desired */}
-            </ListItemIcon>
-            <ListItemText 
-              primary="No-Reply" 
-              primaryTypographyProps={{ 
-                fontWeight: location.pathname === '/no-reply' ? 600 : 400 
+            <ListItemText
+              primary="Dashboard"
+              primaryTypographyProps={{
+                fontWeight: location.pathname === '/dashboard' || location.pathname === '/' ? 600 : 400,
               }}
             />
           </ListItemButton>
         </ListItem>
       </List>
-      
+
       <Box sx={{ p: 2 }}>
         <Button
           variant="outlined"
@@ -274,9 +162,10 @@ const Layout = ({ user, children }) => {
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
-          background: theme.palette.mode === 'dark' 
-            ? 'linear-gradient(90deg, #1e1e1e 0%, #252525 100%)' 
-            : 'linear-gradient(90deg, #ffffff 0%, #f8f9fa 100%)',
+          background:
+            theme.palette.mode === 'dark'
+              ? 'linear-gradient(90deg, #1e1e1e 0%, #252525 100%)'
+              : 'linear-gradient(90deg, #ffffff 0%, #f8f9fa 100%)',
         }}
       >
         <Toolbar>
@@ -289,47 +178,37 @@ const Layout = ({ user, children }) => {
           >
             <MenuIcon />
           </IconButton>
-          
+
           <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center' }}>
             <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600 }}>
-              {location.pathname === '/dashboard' || location.pathname === '/' ? 'Dashboard' : 
-               location.pathname === '/settings' ? 'Settings' : 
-               location.pathname.startsWith('/email/') ? 'Email Details' : 
-               location.pathname === '/incomplete-drafts' ? 'Incomplete Drafts' :
-               location.pathname === '/no-reply' ? 'No-Reply' : ''}
+              Dashboard
             </Typography>
           </Box>
-          
+
           <Box sx={{ flexGrow: 1 }} />
-          
+
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Tooltip title="Search">
-              <IconButton color="inherit" sx={{ mr: 1 }}>
-                <SearchIcon />
-              </IconButton>
-            </Tooltip>
-            
             <Button
               color="primary"
               variant="contained"
               startIcon={<RefreshIcon />}
               onClick={handleSync}
               disabled={syncing}
-              sx={{ 
+              sx={{
                 mr: 2,
                 px: 2,
                 boxShadow: '0 4px 10px rgba(58, 123, 213, 0.2)',
                 background: 'linear-gradient(45deg, #3a7bd5 0%, #00d2ff 100%)',
                 '&:hover': {
                   boxShadow: '0 6px 15px rgba(58, 123, 213, 0.3)',
-                }
+                },
               }}
             >
               {syncing ? 'Syncing...' : 'Sync Emails'}
             </Button>
-            
+
             <ThemeToggle sx={{ mr: 1 }} />
-            
+
             <IconButton
               size="large"
               edge="end"
@@ -338,19 +217,14 @@ const Layout = ({ user, children }) => {
               onClick={handleProfileMenuOpen}
               color="inherit"
             >
-              <Avatar 
-                alt={user?.name || 'User'} 
-                src={user?.profile_pic} 
-                sx={{ 
-                  width: 32, 
-                  height: 32,
-                  border: '2px solid',
-                  borderColor: 'primary.main'
-                }}
+              <Avatar
+                alt={user?.name || 'User'}
+                src={user?.profile_pic}
+                sx={{ width: 32, height: 32, border: '2px solid', borderColor: 'primary.main' }}
               />
             </IconButton>
           </Box>
-          
+
           <Menu
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}
@@ -389,12 +263,6 @@ const Layout = ({ user, children }) => {
               </Typography>
             </Box>
             <Divider />
-            <MenuItem onClick={() => navigate('/settings')}>
-              <ListItemIcon>
-                <SettingsIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Settings</ListItemText>
-            </MenuItem>
             <MenuItem onClick={handleLogout}>
               <ListItemIcon>
                 <LogoutIcon fontSize="small" />
@@ -404,17 +272,13 @@ const Layout = ({ user, children }) => {
           </Menu>
         </Toolbar>
       </AppBar>
-      <Box
-        component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-      >
+
+      <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}>
         <Drawer
           variant="temporary"
           open={mobileOpen}
           onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true, // Better open performance on mobile.
-          }}
+          ModalProps={{ keepMounted: true }}
           sx={{
             display: { xs: 'block', sm: 'none' },
             '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
@@ -424,23 +288,21 @@ const Layout = ({ user, children }) => {
         </Drawer>
         <Drawer
           variant="permanent"
-          sx={{
-            display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
+          sx={{ display: { xs: 'none', sm: 'block' }, '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth } }}
           open
         >
           {drawer}
         </Drawer>
       </Box>
+
       <Box
         component="main"
-        sx={{ 
-          flexGrow: 1, 
-          p: 3, 
+        sx={{
+          flexGrow: 1,
+          p: 3,
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           backgroundColor: theme.palette.mode === 'dark' ? '#121212' : '#f8f9fa',
-          minHeight: '100vh'
+          minHeight: '100vh',
         }}
       >
         <Toolbar />

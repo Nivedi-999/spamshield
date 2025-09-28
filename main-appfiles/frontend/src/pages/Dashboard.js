@@ -1,5 +1,3 @@
-//First file to be created.
-//useEffect to fetch data and useState to manage the fetched data.
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -30,12 +28,11 @@ import {
 import { getEmails, getEmailStats } from '../services/emailService';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
+import AdvancedSearch from '../components/AdvancedSearch';
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-//Defines dashboard as function. Declares state variables like emails, stats, loading, page, 
-// rowsPerPage and filter where null=all, 1(true)=phishing only and 0(flase)=safe
 const Dashboard = () => {
   const navigate = useNavigate();
   const [emails, setEmails] = useState([]);
@@ -53,57 +50,63 @@ const Dashboard = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [filter, setFilter] = useState(null);
+  const [searchFilters, setSearchFilters] = useState(null);
 
-  //useEffect is used to fetch data whenever dependencies like page page, rowsperpage and filter changes. 
-  useEffect(() => {
-    const fetchData = async () => {  //async function is assigned inside fetchData function as it will prevent the UI from blocking till the backend API is fetched.
-      try {
-        setLoading(true); //loading varible is set to true till data is fetched
-        // Fetch emails
-        const filters = filter !== null ? { is_phishing: filter } : {};
-        //A filter object is created which when is null, phishing filter is added or if left empty. this is how the dashboard applies filters while fetching mails. 
-        const emailsData = await getEmails(page + 1, rowsPerPage, filters);
-        //emailsData is a variable which calls the gatEmails API, calls 3 arguments - page, rowsperpage and filter - and stores the fetched data in emailsData.
-        setEmails(emailsData.emails || []);
-        //updates the email state with the fetched data.
-        // Fetch stats
-        const statsData = await getEmailStats(); //getEmailStats is an API defined in emailService.js which fetches the emial statistics and stores it in stastData
-        setStats(statsData);
-        //updates statsData with the fetched mails.
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
+  // Handler for Advanced Search
+  const handleAdvancedSearch = (filters) => {
+    setSearchFilters(filters);
+    setPage(0); // reset page when new search is applied
+  };
+
+
+ useEffect(() => {
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+
+      // Merge advanced search filters and simple toggle
+      const appliedFilters = { ...searchFilters };
+
+      // Only send is_phishing if filter is true or false
+      if (filter === true || filter === false) {
+        appliedFilters.is_phishing = filter;
       }
-    };
 
-    fetchData(); //Ends the async function and calls it immediately. This ensures data is fetched as soon as the effect runs.
-  }, [page, rowsPerPage, filter]); //React reruns this effect whenever dependencies change. example when page or filter changes or the dashboard is automatically reloaded.
+      // Fetch emails using merged filters
+      const emailsData = await getEmails(page + 1, rowsPerPage, appliedFilters);
+      setEmails(emailsData.emails || []);
+
+      // Fetch stats
+      const statsData = await getEmailStats();
+      setStats(statsData);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchData();
+}, [page, rowsPerPage, filter, searchFilters]);
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
   };
-  // the handlechangepage function passes 2 arguments - events and newPage - which means whenever an event occurs the page should be updated to the requested page number and set the newPage as the updated page number.
 
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0); //esets the page number back to the first page to prevent invalid page numbers if user reduces row number.
+    setPage(0);
   };
-  //Gets the new rows-per-page value from the event (event.target.value).
-  // Converts it from string to integer with parseInt(..., 10) (base 10 ensures correct number parsing).
-  // Calls setRowsPerPage(...) to update the rowsPerPage state.
 
   const handleEmailClick = (id) => {
     navigate(`/email/${id}`);
   };
-  //this function declares a parameter id. when invoked, it opens or directs user to the email detail page.
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
-    return date.toLocaleString(); //Converts the Date object into a human-readable string based on the user’s system locale.
-  }; // if no date, then N/A is shown as the placeholder. the fetched date is changed to human-readable string
-  //When you fetch email data from your backend (getEmails), each email record likely has a timestamp — something like "2025-09-15T08:42:00Z". Raw ISO date strings like this are not user-friendly, so you need to format them before showing in the table or chart. That’s exactly why formatDate exists.
+    return date.toLocaleString();
+  };
 
   // Chart data
   const chartData = {
@@ -260,6 +263,7 @@ const Dashboard = () => {
       </Grid>
 
       {/* Email List */}
+      <AdvancedSearch onSearch={handleAdvancedSearch} />
       <Paper sx={{ width: '100%', mb: 2 }}>
         <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="h6">
