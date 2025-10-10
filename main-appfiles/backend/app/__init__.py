@@ -2,6 +2,7 @@ from flask import Flask
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from flask_migrate import Migrate  # ADD THIS IMPORT
 import os
 from dotenv import load_dotenv
 
@@ -42,6 +43,9 @@ def create_app():
     db.init_app(app)
     login_manager.init_app(app)
     
+    # ADD THESE TWO LINES (Migrate setup)
+    migrate = Migrate(app, db)
+    
     # Import and register blueprints
     from .routes.auth import auth_bp
     from .routes.email import email_bp
@@ -55,4 +59,4 @@ def create_app():
     with app.app_context():
         db.create_all()
     
-    return app 
+    return app

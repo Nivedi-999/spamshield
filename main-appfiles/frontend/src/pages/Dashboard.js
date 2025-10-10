@@ -18,6 +18,8 @@ import {
   Card,
   CardContent,
   Divider,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import { 
   Email as EmailIcon, 
@@ -25,7 +27,7 @@ import {
   CheckCircle as CheckCircleIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
-import { getEmails, getEmailStats } from '../services/emailService';
+import { getEmails, getEmailStats, updateEmailTag } from '../services/emailService';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
 import AdvancedSearch from '../components/AdvancedSearch';
@@ -58,6 +60,17 @@ const Dashboard = () => {
     setPage(0); // reset page when new search is applied
   };
 
+  // NEW: Handler for tag change
+  const handleTagChange = async (emailId, newTag) => {
+    try {
+      await updateEmailTag(emailId, newTag);
+      // Refresh the list to show updated tag
+      window.location.reload();  // Simple refresh; optimize with re-fetch if needed
+    } catch (error) {
+      console.error('Failed to update tag:', error);
+      // Optional: Show toast/error message here
+    }
+  };
 
  useEffect(() => {
   const fetchData = async () => {
@@ -314,6 +327,8 @@ const Dashboard = () => {
                     <TableCell>Received</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>Score</TableCell>
+                    {/* NEW: Tag column header */}
+                    <TableCell>Tag</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -338,11 +353,26 @@ const Dashboard = () => {
                         <TableCell>
                           {email.is_phishing ? `${email.phishing_score.toFixed(1)}%` : 'N/A'}
                         </TableCell>
+                        {/* NEW: Tag dropdown */}
+                        <TableCell>
+                          <Select
+                            value={email.tag || 'none'}
+                            onChange={(e) => handleTagChange(email.id, e.target.value)}
+                            size="small"
+                            sx={{ minWidth: 120 }}
+                          >
+                            <MenuItem value="none">None</MenuItem>
+                            <MenuItem value="important">Important</MenuItem>
+                            <MenuItem value="urgent">Urgent</MenuItem>
+                            <MenuItem value="casual">Casual</MenuItem>
+                            <MenuItem value="no-reply">No Reply</MenuItem>
+                          </Select>
+                        </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={5} align="center">
+                      <TableCell colSpan={6} align="center">  {/* Updated colSpan to 6 for new column */}
                         <Typography variant="body1" sx={{ py: 2 }}>
                           No emails found
                         </Typography>
@@ -375,4 +405,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard; 
+export default Dashboard;

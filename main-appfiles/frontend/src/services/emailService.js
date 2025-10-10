@@ -36,7 +36,8 @@ export const getEmails = async (page = 1, perPage = 20, filters = {}) => {
       from: filters.sender || undefined,
       to: filters.recipient || undefined,
       subject: filters.subject || undefined,
-      status: filters.phishingStatus !== 'all' ? filters.phishingStatus : undefined,
+      is_phishing: filters.is_phishing !== undefined ? String(filters.is_phishing) : undefined,
+      status: filters.phishingStatus !== 'all' ? filters.phishingStatus : undefined,  // Fixed: Only one status
       detection_method: filters.detectionMethod !== 'all' ? filters.detectionMethod : undefined,
       has_attachment: filters.hasAttachment !== 'all' ? filters.hasAttachment : undefined,
       min_score: filters.phishingScoreRange ? filters.phishingScoreRange[0] : undefined,
@@ -129,6 +130,22 @@ export const getEmailStats = async () => {
   }
 };
 
+/**
+ * Update email tag
+ * @param {number} emailId - Email ID
+ * @param {string} tag - New tag value
+ * @returns {Promise<Object>} Update result
+ */
+export const updateEmailTag = async (emailId, tag) => {
+  try {
+    const response = await axios.put(`${API_URL}/emails/${emailId}/update_tag`, { tag });
+    return response.data;
+  } catch (error) {
+    console.error(`Error updating tag for email ${emailId}:`, error);
+    throw error;
+  }
+};
+
 export const analyzeEmailWithAI = async (emailId, onChunk, onError, onComplete) => {
   try {
     const response = await fetch(`${API_URL}/emails/${emailId}/analyze_with_ai`, {
@@ -179,4 +196,4 @@ export const analyzeEmailWithAI = async (emailId, onChunk, onError, onComplete) 
   } catch (error) {
     onError(error.message);
   }
-}; 
+};

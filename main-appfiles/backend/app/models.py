@@ -29,6 +29,7 @@ class Email(db.Model):
     body_text = db.Column(db.Text, nullable=True)
     body_html = db.Column(db.Text, nullable=True)
     received_date = db.Column(db.DateTime, nullable=True)
+
     
     # Phishing detection results
     is_phishing = db.Column(db.Boolean, default=False)
@@ -43,7 +44,7 @@ class Email(db.Model):
     spf_pass = db.Column(db.Boolean, nullable=True)
     dkim_pass = db.Column(db.Boolean, nullable=True)
     dmarc_pass = db.Column(db.Boolean, nullable=True)
-    
+    tag = db.Column(db.String(50), default='none')  # 'none', 'important', 'urgent', 'casual', 'no-reply'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
@@ -63,3 +64,27 @@ class Email(db.Model):
         if self.analysis_result:
             return json.loads(self.analysis_result)
         return {} 
+
+def to_dict(self):
+        return {
+            'id': self.id,
+            'message_id': self.message_id,
+            'sender': self.sender,
+            'recipient': self.recipient,
+            'subject': self.subject,
+            'body_text': self.body_text,
+            'body_html': self.body_html,
+            'received_date': self.received_date.isoformat() if self.received_date else None,
+            'is_phishing': self.is_phishing,
+            'phishing_score': self.phishing_score,
+            'detection_method': self.detection_method,
+            'analysis_result': self.get_analysis_result(),
+            'has_attachment': self.has_attachment,
+            'attachment_info': self.get_attachment_info(),
+            'links': self.get_links(),
+            'spf_pass': self.spf_pass,
+            'dkim_pass': self.dkim_pass,
+            'dmarc_pass': self.dmarc_pass,
+            'tag': self.tag,  # Include the new tag field
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }

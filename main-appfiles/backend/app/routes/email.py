@@ -43,6 +43,9 @@ def get_emails():
     if has_attachment is not None:
        has_attachment = has_attachment.lower() == 'true'
     
+    # NEW: Tag filter support
+    tag_filter = request.args.get('tag', None)
+    
     # Build query
     query = Email.query.filter_by(user_id=current_user.id)
     
@@ -75,6 +78,10 @@ def get_emails():
 
     if has_attachment is not None:
       query = query.filter_by(has_attachment=has_attachment)
+    
+    # NEW: Apply tag filter
+    if tag_filter:
+        query = query.filter_by(tag=tag_filter)
 
     keywords = search_term.split() if search_term else []  # <-- Change done here
     if keywords:  # only apply filter if there are keywords
@@ -106,7 +113,9 @@ def get_emails():
             'received_date': email.received_date.isoformat() if email.received_date else None,
             'is_phishing': email.is_phishing,
             'phishing_score': email.phishing_score,
-            'has_attachment': email.has_attachment
+            'has_attachment': email.has_attachment,
+            # NEW: Include tag in response
+            'tag': email.tag
         })
     
     return jsonify({
@@ -131,7 +140,7 @@ def get_email(email_id):
         'subject': email.subject,
         'body_text': email.body_text,
         'body_html': email.body_html,
-        'tags':email.tags,
+        'tags':[],
         'received_date': email.received_date.isoformat() if email.received_date else None,
         'is_phishing': email.is_phishing,
         'phishing_score': email.phishing_score,
@@ -142,10 +151,28 @@ def get_email(email_id):
         'links': email.get_links(),
         'spf_pass': email.spf_pass,
         'dkim_pass': email.dkim_pass,
-        'dmarc_pass': email.dmarc_pass
+        'dmarc_pass': email.dmarc_pass,
+        # NEW: Include tag in single email response
+        'tag': email.tag
     }
     
     return jsonify(email_data)
+
+# NEW: Endpoint to update email tag
+@email_bp.route('/<int:email_id>/update_tag', methods=['PUT'])
+@login_required
+def update_email_tag(email_id):
+    data = request.get_json()
+    new_tag = data.get('tag')
+    
+    if new_tag not in ['none', 'important', 'urgent', 'casual', 'no-reply']:
+        return jsonify({'error': 'Invalid tag'}), 400
+    
+    email = Email.query.filter_by(id=email_id, user_id=current_user.id).first_or_404()
+    email.tag = new_tag
+    db.session.commit()
+    
+    return jsonify({'message': 'Tag updated successfully', 'tag': email.tag})
 
 @email_bp.route('/sync')
 @login_required
@@ -389,4 +416,4 @@ def analyze_email_with_ai(email_id):
         finally:
             yield "data: [DONE]\n\n"
 
-    return Response(generate(), mimetype='text/event-stream') 
+    return Response(generate(), mimetype='text/event-stream')
