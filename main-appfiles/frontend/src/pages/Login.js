@@ -9,7 +9,6 @@ import {
   Toolbar,
   Grid,
   useTheme,
-  useMediaQuery
 } from '@mui/material';
 import { loginWithGoogle } from '../services/authService';
 import ThemeToggle from '../components/ThemeToggle';
@@ -17,7 +16,6 @@ import Logo from '../components/Logo';
 
 const Login = () => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isDarkMode = theme.palette.mode === 'dark';
 
   return (
@@ -88,7 +86,7 @@ const Login = () => {
                   color="text.secondary" 
                   sx={{ mb: 3, fontWeight: 500 }}
                 >
-                  Advanced Phishing Detection by AI
+                  Advanced phishing detection powered by AI
                 </Typography>
                 
                 <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 500 }}>
@@ -178,12 +176,13 @@ const Login = () => {
                   </Box>
                   
                   <Typography variant="h5" align="center" gutterBottom sx={{ fontWeight: 600 }}>
-                    Welcome
+                    Welcome!!
                   </Typography>
                   
                   <Typography variant="body1" color="text.secondary" align="center" sx={{ mb: 4 }}>
                     Sign in to access your protected inbox
-                  </Typography> 
+                  </Typography>
+                  
                   <Button
                     variant="contained"
                     color="primary"
