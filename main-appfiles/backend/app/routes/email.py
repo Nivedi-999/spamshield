@@ -217,6 +217,7 @@ def analyze_email_with_ai(email_id):
     
     if email.user_id != current_user.id:
         return jsonify({'error': 'Unauthorized'}), 403
+    
 
     def generate():
         try:

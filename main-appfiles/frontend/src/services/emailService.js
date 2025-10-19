@@ -87,6 +87,7 @@ export const getEmailById = async (id) => {
   }
 };
 
+
 /**
  * Sync emails from Gmail
  * @returns {Promise<Object>} Sync result
