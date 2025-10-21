@@ -1,5 +1,7 @@
 from flask import Blueprint, jsonify, request, Response
 from flask_login import login_required, current_user
+from datetime import datetime, timedelta
+from sqlalchemy import or_, func, case
 from .. import db
 from ..models import Email
 from ..services.email_service import fetch_emails, get_email_details
@@ -8,7 +10,6 @@ import json
 import google.generativeai as genai
 import os
 from dotenv import load_dotenv
-from sqlalchemy import or_
 
 # Load environment variables
 load_dotenv()
@@ -208,6 +209,100 @@ def analyze_single_email(email_id):
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@email_bp.route('/<int:email_id>/update-status', methods=['POST'])
+@login_required
+def update_email_status(email_id):
+    """Update the phishing status of an email"""
+    email = Email.query.get_or_404(email_id)
+    if email.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    data = request.get_json()
+    new_status = data.get('is_phishing')
+    if new_status is None or not isinstance(new_status, bool):
+        return jsonify({'error': 'is_phishing must be a boolean'}), 400
+
+    email.is_phishing = new_status
+    db.session.commit()
+    return jsonify({
+        'message': f'Status updated to {"Phishing" if new_status else "Safe"} for email {email_id}',
+        'id': email_id,
+        'is_phishing': new_status
+    })
+@email_bp.route('/phishing-trends', methods=['GET'])
+@login_required
+def get_phishing_trends():
+    """
+    Returns:
+    {
+        "labels": ["2025-10-01", "2025-10-02", ...],
+        "datasets": [
+            { "label": "Phishing Rate (%)", "data": [...], ... },
+            { "label": "Safe Rate (%)",     "data": [...], ... }
+        ]
+    }
+    """
+    end_date   = datetime.utcnow()
+    start_date = end_date - timedelta(days=30)
+
+    trends = (
+        db.session.query(
+            func.date(Email.received_date).label('day'),          # YYYY-MM-DD
+            func.count(Email.id).label('total'),
+            func.sum(case((Email.is_phishing, 1), else_=0)).label('phishing_cnt'),
+            func.sum(case((~Email.is_phishing, 1), else_=0)).label('safe_cnt')
+        )
+        .filter(
+            Email.user_id == current_user.id,
+            Email.received_date >= start_date,
+            Email.received_date <= end_date,
+        )
+        .group_by(func.date(Email.received_date))
+        .order_by(func.date(Email.received_date).asc())
+        .all()
+    )
+
+    labels          = []
+    phishing_rates  = []
+    safe_rates      = []
+
+    for row in trends:
+        labels.append(str(row.day))
+        total = row.total or 0
+        phishing = row.phishing_cnt or 0
+        safe     = row.safe_cnt or 0
+
+        phishing_rate = round((phishing / total) * 100, 2) if total else 0.0
+        safe_rate     = round((safe / total) * 100, 2)     if total else 0.0
+
+        phishing_rates.append(phishing_rate)
+        safe_rates.append(safe_rate)
+
+    payload = {
+        "labels": labels,
+        "datasets": [
+            {
+                "label": "Phishing Rate (%)",
+                "data": phishing_rates,
+                "borderColor": "#f44336",
+                "backgroundColor": "rgba(244,67,54,0.2)",
+                "fill": True,
+                "tension": 0.1,
+                "hidden": False
+            },
+            {
+                "label": "Safe Rate (%)",
+                "data": safe_rates,
+                "borderColor": "#4caf50",
+                "backgroundColor": "rgba(76,175,80,0.2)",
+                "fill": True,
+                "tension": 0.1,
+                "hidden": True          # hidden by default – click legend to show
+            }
+        ]
+    }
+    return jsonify(payload)
 
 @email_bp.route('/<int:email_id>/analyze_with_ai', methods=['POST'])
 @login_required

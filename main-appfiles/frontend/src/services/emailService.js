@@ -72,6 +72,24 @@ export const getEmails = async (page = 1, perPage = 20, filters = {}) => {
   }
 };
 
+export const updateEmailStatus = async (emailId, isPhishing) => {
+  try {
+    const response = await axios.post(
+      `${API_URL}/emails/${emailId}/update-status`,
+      { is_phishing: isPhishing },
+      { withCredentials: true }
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Failed to update email status');
+  }
+};
+
+export const getPhishingTrends = async () => {
+  const response = await axios.get(`${API_URL}/emails/phishing-trends`, { withCredentials: true });
+  return response.data;
+};
+
 /**
  * Get a single email by ID
  * @param {number} id - Email ID

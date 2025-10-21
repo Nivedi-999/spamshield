@@ -20,20 +20,33 @@ import {
   Divider,
   Select,
   MenuItem,
+  IconButton,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
 } from '@mui/material';
 import { 
   Email as EmailIcon, 
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
   Refresh as RefreshIcon,
+  MoreVert as MoreVertIcon,
 } from '@mui/icons-material';
-import { getEmails, getEmailStats, updateEmailTag } from '../services/emailService';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { Pie } from 'react-chartjs-2';
+import { 
+  getEmails, 
+  getEmailStats, 
+  updateEmailTag,
+  updateEmailStatus,
+  getPhishingTrends,
+} from '../services/emailService';
+import { Chart as ChartJS, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend, ArcElement } from 'chart.js';
+import { Line, Pie } from 'react-chartjs-2';
 import AdvancedSearch from '../components/AdvancedSearch';
 
 // Register Chart.js components
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend, ArcElement);
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -53,54 +66,94 @@ const Dashboard = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [filter, setFilter] = useState(null);
   const [searchFilters, setSearchFilters] = useState(null);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [selectedEmailId, setSelectedEmailId] = useState(null);
+  const [newStatus, setNewStatus] = useState(false);
+  const [phishingTrends, setPhishingTrends] = useState({ labels: [], datasets: [] });
 
   // Handler for Advanced Search
   const handleAdvancedSearch = (filters) => {
     setSearchFilters(filters);
-    setPage(0); // reset page when new search is applied
+    setPage(0);
   };
 
-  // NEW: Handler for tag change
+  // Handler for individual email tag change
   const handleTagChange = async (emailId, newTag) => {
     try {
       await updateEmailTag(emailId, newTag);
-      // Refresh the list to show updated tag
-      window.location.reload();  // Simple refresh; optimize with re-fetch if needed
+      window.location.reload();
     } catch (error) {
       console.error('Failed to update tag:', error);
-      // Optional: Show toast/error message here
     }
   };
 
- useEffect(() => {
-  const fetchData = async () => {
-    try {
-      setLoading(true);
+  // Handler for status change confirmation
+  const handleStatusChange = (emailId, currentStatus) => {
+    setSelectedEmailId(emailId);
+    setNewStatus(!currentStatus);
+    setOpenDialog(true);
+  };
 
-      // Merge advanced search filters and simple toggle
-      const appliedFilters = { ...searchFilters };
-
-      // Only send is_phishing if filter is true or false
-      if (filter === true || filter === false) {
-        appliedFilters.is_phishing = filter;
+  // Handle dialog confirmation
+  const handleConfirmStatusChange = async () => {
+    if (selectedEmailId !== null) {
+      try {
+        await updateEmailStatus(selectedEmailId, newStatus);
+        window.location.reload();
+      } catch (error) {
+        console.error('Failed to update status:', error);
       }
-
-      // Fetch emails using merged filters
-      const emailsData = await getEmails(page + 1, rowsPerPage, appliedFilters);
-      setEmails(emailsData.emails || []);
-
-      // Fetch stats
-      const statsData = await getEmailStats();
-      setStats(statsData);
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
     }
+    setOpenDialog(false);
   };
 
-  fetchData();
-}, [page, rowsPerPage, filter, searchFilters]);
+  // Handle dialog cancellation
+  const handleCancelStatusChange = () => {
+    setOpenDialog(false);
+  };
+
+  // Custom legend click handler to toggle dataset visibility
+  const onLegendClick = (e, legendItem, legend) => {
+    const index = legendItem.datasetIndex;
+    const ci = legend.chart;
+    const meta = ci.getDatasetMeta(index);
+    meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+    ci.update();
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+
+        // Merge advanced search filters and simple toggle
+        const appliedFilters = { ...searchFilters };
+
+        if (filter === true || filter === false) {
+          appliedFilters.is_phishing = filter;
+        }
+
+        // Fetch emails
+        const emailsData = await getEmails(page + 1, rowsPerPage, appliedFilters);
+        setEmails(emailsData.emails || []);
+
+        // Fetch stats
+        const statsData = await getEmailStats();
+        setStats(statsData);
+
+        // Fetch phishing + safe trends
+        const trendsData = await getPhishingTrends();
+        setPhishingTrends(trendsData);
+
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [page, rowsPerPage, filter, searchFilters]);
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -121,29 +174,13 @@ const Dashboard = () => {
     return date.toLocaleString();
   };
 
-  // Chart data
+  // Pie chart data
   const chartData = {
     labels: ['Safe Emails', 'Phishing Emails'],
     datasets: [
       {
         data: [stats.total_emails - stats.phishing_emails, stats.phishing_emails],
         backgroundColor: ['#4caf50', '#f44336'],
-        borderWidth: 1,
-      },
-    ],
-  };
-
-  // Detection methods chart
-  const detectionMethodsData = {
-    labels: ['ML Model', 'AI Analysis', 'Rule-based'],
-    datasets: [
-      {
-        data: [
-          stats.detection_methods.ml,
-          stats.detection_methods.ai,
-          stats.detection_methods.rules
-        ],
-        backgroundColor: ['#2196f3', '#9c27b0', '#ff9800'],
         borderWidth: 1,
       },
     ],
@@ -236,6 +273,7 @@ const Dashboard = () => {
 
       {/* Charts */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
+        {/* Pie Chart */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
             <Typography variant="h6" gutterBottom>
@@ -254,19 +292,42 @@ const Dashboard = () => {
             </Box>
           </Paper>
         </Grid>
-        
+
+        {/* Line Chart with Safe Rate */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
             <Typography variant="h6" gutterBottom>
-              Detection Methods
+              Phishing & Safe Trends Over Time
             </Typography>
             <Box sx={{ height: 300, display: 'flex', justifyContent: 'center' }}>
-              {stats.phishing_emails > 0 ? (
-                <Pie data={detectionMethodsData} options={{ maintainAspectRatio: false }} />
+              {phishingTrends.labels && phishingTrends.labels.length > 0 ? (
+                <Line
+                  data={phishingTrends}
+                  options={{
+                    maintainAspectRatio: false,
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Rate (%)' },
+                        max: 100,
+                      },
+                      x: {
+                        title: { display: true, text: 'Date' },
+                      },
+                    },
+                    plugins: {
+                      legend: {
+                        display: true,
+                        position: 'top',
+                        onClick: onLegendClick, // Enable toggling
+                      },
+                    },
+                  }}
+                />
               ) : (
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                   <Typography variant="body1" color="textSecondary">
-                    No phishing emails detected
+                    No trends data available
                   </Typography>
                 </Box>
               )}
@@ -322,12 +383,12 @@ const Dashboard = () => {
               <Table sx={{ minWidth: 650 }}>
                 <TableHead>
                   <TableRow>
+                    <TableCell>Actions</TableCell>
                     <TableCell>Sender</TableCell>
                     <TableCell>Subject</TableCell>
                     <TableCell>Received</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>Score</TableCell>
-                    {/* NEW: Tag column header */}
                     <TableCell>Tag</TableCell>
                   </TableRow>
                 </TableHead>
@@ -340,6 +401,17 @@ const Dashboard = () => {
                         onClick={() => handleEmailClick(email.id)}
                         sx={{ cursor: 'pointer' }}
                       >
+                        <TableCell>
+                          <IconButton
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStatusChange(email.id, email.is_phishing);
+                            }}
+                            size="small"
+                          >
+                            <MoreVertIcon />
+                          </IconButton>
+                        </TableCell>
                         <TableCell>{email.sender}</TableCell>
                         <TableCell>{email.subject || '(No Subject)'}</TableCell>
                         <TableCell>{formatDate(email.received_date)}</TableCell>
@@ -351,9 +423,8 @@ const Dashboard = () => {
                           />
                         </TableCell>
                         <TableCell>
-                          {email.is_phishing ? `${email.phishing_score.toFixed(1)}%` : 'N/A'}
+                          {email.is_phishing ? `${email.phishing_score?.toFixed(1)}%` : 'N/A'}
                         </TableCell>
-                        {/* NEW: Tag dropdown */}
                         <TableCell>
                           <Select
                             value={email.tag || 'none'}
@@ -372,7 +443,7 @@ const Dashboard = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} align="center">  {/* Updated colSpan to 6 for new column */}
+                      <TableCell colSpan={7} align="center">
                         <Typography variant="body1" sx={{ py: 2 }}>
                           No emails found
                         </Typography>
@@ -392,7 +463,7 @@ const Dashboard = () => {
             <TablePagination
               rowsPerPageOptions={[5, 10, 25]}
               component="div"
-              count={-1} // We don't know the total count
+              count={-1}
               rowsPerPage={rowsPerPage}
               page={page}
               onPageChange={handleChangePage}
@@ -401,6 +472,31 @@ const Dashboard = () => {
           </>
         )}
       </Paper>
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={openDialog}
+        onClose={handleCancelStatusChange}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          {`Change Status to ${newStatus ? 'Phishing' : 'Safe'}?`}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            Are you sure you want to change the status of this email? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelStatusChange} color="primary">
+            No
+          </Button>
+          <Button onClick={handleConfirmStatusChange} color="primary" autoFocus>
+            Yes
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
