@@ -1,91 +1,83 @@
 from flask import Blueprint, jsonify, request, Response
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
-from sqlalchemy import or_, func, case
+from sqlalchemy import or_, func, case, and_
 from .. import db
-from ..models import Email
-from ..services.email_service import fetch_emails, get_email_details
+from ..models import Email, SenderTag
+from ..services.email_service import fetch_emails
 from ..services.phishing_detection import analyze_email
 import json
 import google.generativeai as genai
 import os
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
 email_bp = Blueprint('email', __name__, url_prefix='/emails')
-
-# Initialize Gemini API
 genai.configure(api_key=os.environ.get('GEMINI_API_KEY'))
+
 
 @email_bp.route('/')
 @login_required
 def get_emails():
-    """Get all emails for the current user with pagination"""
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     search_term = request.args.get('searchTerm', '') or request.args.get('query', '')
-    search_term = search_term.strip().lower() if search_term else '' 
-    
-    # Filter options
+    search_term = search_term.strip().lower() if search_term else ''
+
     is_phishing = request.args.get('is_phishing', None)
     if is_phishing is not None:
         is_phishing = is_phishing.lower() == 'true'
-    
-    # New advanced search filters
+
     sender_filter = request.args.get('from', None)
     subject_filter = request.args.get('subject', None)
     date_from = request.args.get('date_from', None)
     date_to = request.args.get('date_to', None)
-    status = request.args.get('status', None)  # 'phishing', 'safe', 'all'
+    status = request.args.get('status', None)
     detection_method = request.args.get('detection_method', None)
     has_attachment = request.args.get('has_attachment', None)
     if has_attachment is not None:
-       has_attachment = has_attachment.lower() == 'true'
-    
-    # NEW: Tag filter support
+        has_attachment = has_attachment.lower() == 'true'
+
     tag_filter = request.args.get('tag', None)
-    
-    # Build query
+
     query = Email.query.filter_by(user_id=current_user.id)
-    
-    # Apply filters
+
     if is_phishing is not None:
         query = query.filter_by(is_phishing=is_phishing)
 
-    # New advanced filters
     if sender_filter:
-       query = query.filter(Email.sender.ilike(f"%{sender_filter}%"))
-
+        query = query.filter(Email.sender.ilike(f"%{sender_filter}%"))
     if subject_filter:
-       query = query.filter(Email.subject.ilike(f"%{subject_filter}%"))
-
+        query = query.filter(Email.subject.ilike(f"%{subject_filter}%"))
     if date_from:
-       query = query.filter(Email.received_date >= date_from)
-
+        query = query.filter(Email.received_date >= date_from)
     if date_to:
-       query = query.filter(Email.received_date <= date_to)
+        query = query.filter(Email.received_date <= date_to)
 
     if status:
-       status = status.lower()
-    if status == 'phishing':
-        query = query.filter_by(is_phishing=True)
-    elif status == 'safe':
-        query = query.filter_by(is_phishing=False)
+        status = status.lower()
+        if status == 'phishing':
+            query = query.filter_by(is_phishing=True)
+        elif status == 'safe':
+            query = query.filter_by(is_phishing=False)
 
     if detection_method:
-      query = query.filter_by(detection_method=detection_method)
-
+        query = query.filter_by(detection_method=detection_method)
     if has_attachment is not None:
-      query = query.filter_by(has_attachment=has_attachment)
-    
-    # NEW: Apply tag filter
-    if tag_filter:
-        query = query.filter_by(tag=tag_filter)
+        query = query.filter_by(has_attachment=has_attachment)
 
-    keywords = search_term.split() if search_term else []  # <-- Change done here
-    if keywords:  # only apply filter if there are keywords
+    if tag_filter:
+        query = query.join(
+            SenderTag,
+            and_(
+                SenderTag.sender_email == Email.sender,
+                SenderTag.user_id == current_user.id
+            )
+        ).filter(SenderTag.tag == tag_filter)
+
+    keywords = search_term.split() if search_term else []
+    if keywords:
         query = query.filter(
             or_(*[
                 or_(
@@ -97,15 +89,17 @@ def get_emails():
             ])
         )
 
-    # Order by received date (newest first)
     query = query.order_by(Email.received_date.desc())
-    
-    # Paginate
     emails_pagination = query.paginate(page=page, per_page=per_page)
 
-    # Format response
     emails = []
     for email in emails_pagination.items:
+        sender_tag = SenderTag.query.filter_by(
+            user_id=current_user.id,
+            sender_email=email.sender
+        ).first()
+        tag = sender_tag.tag if sender_tag else 'none'
+
         emails.append({
             'id': email.id,
             'message_id': email.message_id,
@@ -115,10 +109,9 @@ def get_emails():
             'is_phishing': email.is_phishing,
             'phishing_score': email.phishing_score,
             'has_attachment': email.has_attachment,
-            # NEW: Include tag in response
-            'tag': email.tag
+            'tag': tag
         })
-    
+
     return jsonify({
         'emails': emails,
         'total': emails_pagination.total,
@@ -126,13 +119,20 @@ def get_emails():
         'current_page': page
     })
 
+
 @email_bp.route('/<int:email_id>')
 @login_required
 def get_email(email_id):
     """Get details for a specific email"""
     email = Email.query.filter_by(id=email_id, user_id=current_user.id).first_or_404()
     
-    # Format response with all details
+    # GET TAG FROM SenderTag
+    sender_tag = SenderTag.query.filter_by(
+        user_id=current_user.id,
+        sender_email=email.sender
+    ).first()
+    tag = sender_tag.tag if sender_tag else 'none'
+
     email_data = {
         'id': email.id,
         'message_id': email.message_id,
@@ -141,7 +141,6 @@ def get_email(email_id):
         'subject': email.subject,
         'body_text': email.body_text,
         'body_html': email.body_html,
-        'tags':[],
         'received_date': email.received_date.isoformat() if email.received_date else None,
         'is_phishing': email.is_phishing,
         'phishing_score': email.phishing_score,
@@ -153,62 +152,71 @@ def get_email(email_id):
         'spf_pass': email.spf_pass,
         'dkim_pass': email.dkim_pass,
         'dmarc_pass': email.dmarc_pass,
-        # NEW: Include tag in single email response
-        'tag': email.tag
+        'tag': tag  # FIXED
     }
     
     return jsonify(email_data)
 
-# NEW: Endpoint to update email tag
-@email_bp.route('/<int:email_id>/update_tag', methods=['PUT'])
+
+@email_bp.route('/<int:email_id>/tag', methods=['PATCH'])
 @login_required
-def update_email_tag(email_id):
+def update_sender_tag(email_id):
     data = request.get_json()
-    new_tag = data.get('tag')
-    
-    if new_tag not in ['none', 'important', 'urgent', 'casual', 'no-reply']:
+    tag = data.get('tag')
+
+    valid_tags = ['important', 'urgent', 'casual', 'no-reply']
+    if tag is not None and tag not in valid_tags:
         return jsonify({'error': 'Invalid tag'}), 400
-    
+
     email = Email.query.filter_by(id=email_id, user_id=current_user.id).first_or_404()
-    email.tag = new_tag
+    sender_email = email.sender
+
+    sender_tag = SenderTag.query.filter_by(
+        user_id=current_user.id,
+        sender_email=sender_email
+    ).first()
+
+    if sender_tag:
+        if tag is None:
+            db.session.delete(sender_tag)
+        else:
+            sender_tag.tag = tag
+    else:
+        if tag:
+            new_tag = SenderTag(user_id=current_user.id, sender_email=sender_email, tag=tag)
+            db.session.add(new_tag)
+
     db.session.commit()
-    
-    return jsonify({'message': 'Tag updated successfully', 'tag': email.tag})
 
-@email_bp.route('/sync')
-@login_required
-def sync_emails():
-    """Fetch new emails from Gmail"""
-    try:
-        # Fetch emails from Gmail
-        new_emails = fetch_emails(current_user)
-        
-        return jsonify({
-            'message': f'Successfully synced {len(new_emails)} new emails',
-            'count': len(new_emails)
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    return jsonify({
+        'success': True,
+        'message': f'Sender {sender_email} tagged as {tag or "none"}',
+        'tag': tag
+    })
 
-@email_bp.route('/<int:email_id>/analyze')
+
+@email_bp.route('/trends')
 @login_required
-def analyze_single_email(email_id):
-    """Analyze a specific email for phishing"""
-    email = Email.query.filter_by(id=email_id, user_id=current_user.id).first_or_404()
-    
-    try:
-        # Analyze the email
-        result = analyze_email(email)
-        
-        return jsonify({
-            'message': 'Email analyzed successfully',
-            'is_phishing': email.is_phishing,
-            'phishing_score': email.phishing_score,
-            'detection_method': email.detection_method,
-            'analysis_result': email.get_analysis_result()
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+def get_phishing_trends():
+    return jsonify({
+        "labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+        "datasets": [
+            {
+                "label": "Phishing %",
+                "data": [12, 19, 3, 5, 8, 15, 10],
+                "borderColor": "#f44336",
+                "backgroundColor": "rgba(244, 67, 54, 0.1)",
+                "fill": True
+            },
+            {
+                "label": "Safe %",
+                "data": [88, 81, 97, 95, 92, 85, 90],
+                "borderColor": "#4caf50",
+                "backgroundColor": "rgba(76, 175, 80, 0.1)",
+                "fill": True
+            }
+        ]
+    })
 
 @email_bp.route('/<int:email_id>/update-status', methods=['POST'])
 @login_required
@@ -226,83 +234,63 @@ def update_email_status(email_id):
     email.is_phishing = new_status
     db.session.commit()
     return jsonify({
-        'message': f'Status updated to {"Phishing" if new_status else "Safe"} for email {email_id}',
+        'message': f'Status updated to {"Phishing" if new_status else "Safe"}',
         'id': email_id,
         'is_phishing': new_status
     })
-@email_bp.route('/phishing-trends', methods=['GET'])
+@email_bp.route('/sync')
 @login_required
-def get_phishing_trends():
-    """
-    Returns:
-    {
-        "labels": ["2025-10-01", "2025-10-02", ...],
-        "datasets": [
-            { "label": "Phishing Rate (%)", "data": [...], ... },
-            { "label": "Safe Rate (%)",     "data": [...], ... }
-        ]
-    }
-    """
-    end_date   = datetime.utcnow()
-    start_date = end_date - timedelta(days=30)
+def sync_emails():
+    """Fetch new emails from Gmail with better error handling"""
+    try:
+        # Debug: Log user
+        print(f"[SYNC] Starting sync for user: {current_user.id} ({current_user.email})")
 
-    trends = (
-        db.session.query(
-            func.date(Email.received_date).label('day'),          # YYYY-MM-DD
-            func.count(Email.id).label('total'),
-            func.sum(case((Email.is_phishing, 1), else_=0)).label('phishing_cnt'),
-            func.sum(case((~Email.is_phishing, 1), else_=0)).label('safe_cnt')
-        )
-        .filter(
-            Email.user_id == current_user.id,
-            Email.received_date >= start_date,
-            Email.received_date <= end_date,
-        )
-        .group_by(func.date(Email.received_date))
-        .order_by(func.date(Email.received_date).asc())
-        .all()
-    )
+        # Check if user has Gmail token
+        if not current_user.access_token:
+            print("[SYNC] No Gmail token found")
+            return jsonify({'message': 'No Gmail account connected', 'count': 0}), 200
 
-    labels          = []
-    phishing_rates  = []
-    safe_rates      = []
+        # Call fetch_emails
+        new_emails = fetch_emails(current_user)
+        count = len(new_emails) if new_emails else 0
 
-    for row in trends:
-        labels.append(str(row.day))
-        total = row.total or 0
-        phishing = row.phishing_cnt or 0
-        safe     = row.safe_cnt or 0
+        print(f"[SYNC] Successfully synced {count} emails")
+        return jsonify({
+            'message': f'Successfully synced {count} new emails',
+            'count': count
+        }), 200
 
-        phishing_rate = round((phishing / total) * 100, 2) if total else 0.0
-        safe_rate     = round((safe / total) * 100, 2)     if total else 0.0
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[SYNC ERROR] {error_msg}")
 
-        phishing_rates.append(phishing_rate)
-        safe_rates.append(safe_rate)
+        # Classify common errors
+        if "invalid_grant" in error_msg or "Token has been expired" in error_msg:
+            return jsonify({'error': 'Gmail token expired. Please reconnect your account.'}), 401
+        elif "Rate limit" in error_msg:
+            return jsonify({'error': 'Gmail rate limit exceeded. Try again later.'}), 429
+        elif "service" in error_msg.lower():
+            return jsonify({'error': 'Gmail service unavailable. Try again later.'}), 503
+        else:
+            return jsonify({'error': 'Sync failed. Check server logs.'}), 500
 
-    payload = {
-        "labels": labels,
-        "datasets": [
-            {
-                "label": "Phishing Rate (%)",
-                "data": phishing_rates,
-                "borderColor": "#f44336",
-                "backgroundColor": "rgba(244,67,54,0.2)",
-                "fill": True,
-                "tension": 0.1,
-                "hidden": False
-            },
-            {
-                "label": "Safe Rate (%)",
-                "data": safe_rates,
-                "borderColor": "#4caf50",
-                "backgroundColor": "rgba(76,175,80,0.2)",
-                "fill": True,
-                "tension": 0.1,
-                "hidden": True          # hidden by default – click legend to show
-            }
-        ]
-    }
-    return jsonify(payload)
+@email_bp.route('/<int:email_id>/analyze')
+@login_required
+def analyze_single_email(email_id):
+    email = Email.query.filter_by(id=email_id, user_id=current_user.id).first_or_404()
+    try:
+        result = analyze_email(email)
+        return jsonify({
+            'message': 'Email analyzed successfully',
+            'is_phishing': email.is_phishing,
+            'phishing_score': email.phishing_score,
+            'detection_method': email.detection_method,
+            'analysis_result': email.get_analysis_result()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @email_bp.route('/<int:email_id>/analyze_with_ai', methods=['POST'])
 @login_required

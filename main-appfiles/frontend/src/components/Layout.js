@@ -1,3 +1,4 @@
+// src/components/Layout.js
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -19,13 +20,16 @@ import {
   MenuItem,
   Button,
   useTheme,
+  ListItemText as MuiListItemText,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
   Refresh as RefreshIcon,
   ExitToApp as LogoutIcon,
+  Label as LabelIcon,
 } from '@mui/icons-material';
+import { TagFilterContext } from '../contexts/TagFilterContext';
 import { logout } from '../services/authService';
 import { syncEmails } from '../services/emailService';
 import ThemeToggle from './ThemeToggle';
@@ -40,6 +44,7 @@ const Layout = ({ user, children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const [selectedTag, setSelectedTag] = useState('all');
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
   const handleProfileMenuOpen = (event) => setAnchorEl(event.currentTarget);
@@ -60,6 +65,23 @@ const Layout = ({ user, children }) => {
     } finally {
       setSyncing(false);
     }
+  };
+
+  // REUSABLE STYLES
+  const selectedStyle = {
+    borderRadius: 2,
+    '&.Mui-selected': {
+      background:
+        theme.palette.mode === 'dark'
+          ? 'linear-gradient(45deg, rgba(58, 123, 213, 0.2) 0%, rgba(0, 210, 255, 0.2) 100%)'
+          : 'linear-gradient(45deg, rgba(58, 123, 213, 0.1) 0%, rgba(0, 210, 255, 0.1) 100%)',
+      '&:hover': {
+        background:
+          theme.palette.mode === 'dark'
+            ? 'linear-gradient(45deg, rgba(58, 123, 213, 0.3) 0%, rgba(0, 210, 255, 0.3) 100%)'
+            : 'linear-gradient(45deg, rgba(58, 123, 213, 0.2) 0%, rgba(0, 210, 255, 0.2) 100%)',
+      },
+    },
   };
 
   const drawer = (
@@ -87,7 +109,7 @@ const Layout = ({ user, children }) => {
             width: 64,
             height: 64,
             mb: 1,
-            boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+            boxShadow: '0 4px  zehnpx rgba(0,0,0,0.1)',
             border: '2px solid',
             borderColor: 'primary.main',
           }}
@@ -107,21 +129,7 @@ const Layout = ({ user, children }) => {
           <ListItemButton
             selected={location.pathname === '/dashboard' || location.pathname === '/'}
             onClick={() => navigate('/dashboard')}
-            sx={{
-              borderRadius: 2,
-              '&.Mui-selected': {
-                background:
-                  theme.palette.mode === 'dark'
-                    ? 'linear-gradient(45deg, rgba(58, 123, 213, 0.2) 0%, rgba(0, 210, 255, 0.2) 100%)'
-                    : 'linear-gradient(45deg, rgba(58, 123, 213, 0.1) 0%, rgba(0, 210, 255, 0.1) 100%)',
-                '&:hover': {
-                  background:
-                    theme.palette.mode === 'dark'
-                      ? 'linear-gradient(45deg, rgba(58, 123, 213, 0.3) 0%, rgba(0, 210, 255, 0.3) 100%)'
-                      : 'linear-gradient(45deg, rgba(58, 123, 213, 0.2) 0%, rgba(0, 210, 255, 0.2) 100%)',
-                },
-              },
-            }}
+            sx={selectedStyle}
           >
             <ListItemIcon>
               <DashboardIcon
@@ -137,6 +145,54 @@ const Layout = ({ user, children }) => {
           </ListItemButton>
         </ListItem>
       </List>
+
+      {/* TAG FILTERS — FIXED */}
+      {['all', 'important', 'urgent', 'casual', 'no-reply'].map((tag) => {
+        const getLabel = () => {
+          switch (tag) {
+            case 'all': return 'All Emails';
+            case 'important': return 'Important';
+            case 'urgent': return 'Urgent';
+            case 'casual': return 'Casual';
+            default: return 'No Reply';
+          }
+        };
+
+        const label = getLabel();
+
+        const handleClick = () => {
+          setSelectedTag(tag);
+          if (tag === 'all') {
+            navigate('/emails');
+          }
+        };
+
+        return (
+          <ListItem key={tag} disablePadding sx={{ mb: 1 }}>
+            <ListItemButton
+              selected={selectedTag === tag}
+              onClick={handleClick}
+              sx={selectedStyle}
+            >
+              <ListItemIcon>
+                <LabelIcon
+                  fontSize="small"
+                  color={selectedTag === tag ? 'primary' : 'inherit'}
+                />
+              </ListItemIcon>
+              <ListItemText
+                primary={label}
+                primaryTypographyProps={{
+                  fontWeight: selectedTag === tag ? 600 : 400,
+                  fontSize: '0.9375rem',
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+        );
+      })}
+
+      <Divider sx={{ mx: 2 }} />
 
       <Box sx={{ p: 2 }}>
         <Button
@@ -154,161 +210,163 @@ const Layout = ({ user, children }) => {
   );
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <CssBaseline />
-      <AppBar
-        position="fixed"
-        sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
-          background:
-            theme.palette.mode === 'dark'
-              ? 'linear-gradient(90deg, #1e1e1e 0%, #252525 100%)'
-              : 'linear-gradient(90deg, #ffffff 0%, #f8f9fa 100%)',
-        }}
-      >
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
+    <TagFilterContext.Provider value={{ selectedTag, setSelectedTag }}>
+      <Box sx={{ display: 'flex' }}>
+        <CssBaseline />
+        <AppBar
+          position="fixed"
+          sx={{
+            width: { sm: `calc(100% - ${drawerWidth}px)` },
+            ml: { sm: `${drawerWidth}px` },
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
+            background:
+              theme.palette.mode === 'dark'
+                ? 'linear-gradient(90deg, #1e1e1e 0%, #252525 100%)'
+                : 'linear-gradient(90deg, #ffffff 0%, #f8f9fa 100%)',
+          }}
+        >
+          <Toolbar>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2, display: { sm: 'none' } }}
+            >
+              <MenuIcon />
+            </IconButton>
 
-          <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center' }}>
-            <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600 }}>
-              Dashboard
-            </Typography>
-          </Box>
+            <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center' }}>
+              <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600 }}>
+                Dashboard
+              </Typography>
+            </Box>
 
-          <Box sx={{ flexGrow: 1 }} />
+            <Box sx={{ flexGrow: 1 }} />
 
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Button
-              color="primary"
-              variant="contained"
-              startIcon={<RefreshIcon />}
-              onClick={handleSync}
-              disabled={syncing}
-              sx={{
-                mr: 2,
-                px: 2,
-                boxShadow: '0 4px 10px rgba(58, 123, 213, 0.2)',
-                background: 'linear-gradient(45deg, #3a7bd5 0%, #00d2ff 100%)',
-                '&:hover': {
-                  boxShadow: '0 6px 15px rgba(58, 123, 213, 0.3)',
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Button
+                color="primary"
+                variant="contained"
+                startIcon={<RefreshIcon />}
+                onClick={handleSync}
+                disabled={syncing}
+                sx={{
+                  mr: 2,
+                  px: 2,
+                  boxShadow: '0 4px 10px rgba(58, 123, 213, 0.2)',
+                  background: 'linear-gradient(45deg, #3a7bd5 0%, #00d2ff 100%)',
+                  '&:hover': {
+                    boxShadow: '0 6px 15px rgba(58, 123, 213, 0.3)',
+                  },
+                }}
+              >
+                {syncing ? 'Syncing...' : 'Sync Emails'}
+              </Button>
+
+              <ThemeToggle sx={{ mr: 1 }} />
+
+              <IconButton
+                size="large"
+                edge="end"
+                aria-label="account of current user"
+                aria-haspopup="true"
+                onClick={handleProfileMenuOpen}
+                color="inherit"
+              >
+                <Avatar
+                  alt={user?.name || 'User'}
+                  src={user?.profile_pic}
+                  sx={{ width: 32, height: 32, border: '2px solid', borderColor: 'primary.main' }}
+                />
+              </IconButton>
+            </Box>
+
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleProfileMenuClose}
+              transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+              anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+              PaperProps={{
+                elevation: 3,
+                sx: {
+                  mt: 1.5,
+                  borderRadius: 2,
+                  minWidth: 180,
+                  overflow: 'visible',
+                  filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.1))',
+                  '&:before': {
+                    content: '""',
+                    display: 'block',
+                    position: 'absolute',
+                    top: 0,
+                    right: 14,
+                    width: 10,
+                    height: 10,
+                    bgcolor: theme.palette.mode === 'dark' ? '#252525' : 'background.paper',
+                    transform: 'translateY(-50%) rotate(45deg)',
+                    zIndex: 0,
+                  },
                 },
               }}
             >
-              {syncing ? 'Syncing...' : 'Sync Emails'}
-            </Button>
+              <Box sx={{ px: 2, py: 1.5 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  {user?.name || 'User'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {user?.email}
+                </Typography>
+              </Box>
+              <Divider />
+              <MenuItem onClick={handleLogout}>
+                <ListItemIcon>
+                  <LogoutIcon fontSize="small" />
+                </ListItemIcon>
+                <MuiListItemText>Logout</MuiListItemText>
+              </MenuItem>
+            </Menu>
+          </Toolbar>
+        </AppBar>
 
-            <ThemeToggle sx={{ mr: 1 }} />
-
-            <IconButton
-              size="large"
-              edge="end"
-              aria-label="account of current user"
-              aria-haspopup="true"
-              onClick={handleProfileMenuOpen}
-              color="inherit"
-            >
-              <Avatar
-                alt={user?.name || 'User'}
-                src={user?.profile_pic}
-                sx={{ width: 32, height: 32, border: '2px solid', borderColor: 'primary.main' }}
-              />
-            </IconButton>
-          </Box>
-
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={handleProfileMenuClose}
-            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-            PaperProps={{
-              elevation: 3,
-              sx: {
-                mt: 1.5,
-                borderRadius: 2,
-                minWidth: 180,
-                overflow: 'visible',
-                filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.1))',
-                '&:before': {
-                  content: '""',
-                  display: 'block',
-                  position: 'absolute',
-                  top: 0,
-                  right: 14,
-                  width: 10,
-                  height: 10,
-                  bgcolor: theme.palette.mode === 'dark' ? '#252525' : 'background.paper',
-                  transform: 'translateY(-50%) rotate(45deg)',
-                  zIndex: 0,
-                },
-              },
+        <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}>
+          <Drawer
+            variant="temporary"
+            open={mobileOpen}
+            onClose={handleDrawerToggle}
+            ModalProps={{ keepMounted: true }}
+            sx={{
+              display: { xs: 'block', sm: 'none' },
+              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
             }}
           >
-            <Box sx={{ px: 2, py: 1.5 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                {user?.name || 'User'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {user?.email}
-              </Typography>
-            </Box>
-            <Divider />
-            <MenuItem onClick={handleLogout}>
-              <ListItemIcon>
-                <LogoutIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Logout</ListItemText>
-            </MenuItem>
-          </Menu>
-        </Toolbar>
-      </AppBar>
+            {drawer}
+          </Drawer>
+          <Drawer
+            variant="permanent"
+            sx={{ display: { xs: 'none', sm: 'block' }, '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth } }}
+            open
+          >
+            {drawer}
+          </Drawer>
+        </Box>
 
-      <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}>
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{ keepMounted: true }}
+        <Box
+          component="main"
           sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            flexGrow: 1,
+            p: 3,
+            width: { sm: `calc(100% - ${drawerWidth}px)` },
+            backgroundColor: theme.palette.mode === 'dark' ? '#121212' : '#f8f9fa',
+            minHeight: '100vh',
           }}
         >
-          {drawer}
-        </Drawer>
-        <Drawer
-          variant="permanent"
-          sx={{ display: { xs: 'none', sm: 'block' }, '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth } }}
-          open
-        >
-          {drawer}
-        </Drawer>
+          <Toolbar />
+          {children}
+        </Box>
       </Box>
-
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          backgroundColor: theme.palette.mode === 'dark' ? '#121212' : '#f8f9fa',
-          minHeight: '100vh',
-        }}
-      >
-        <Toolbar />
-        {children}
-      </Box>
-    </Box>
+    </TagFilterContext.Provider>
   );
 };
 

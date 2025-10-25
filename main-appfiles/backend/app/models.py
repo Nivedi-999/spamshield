@@ -1,3 +1,4 @@
+# models.py
 from . import db
 from flask_login import UserMixin
 from datetime import datetime
@@ -13,11 +14,24 @@ class User(db.Model, UserMixin):
     token_expiry = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Relationship with emails
     emails = db.relationship('Email', backref='user', lazy=True)
-    
+    sender_tags = db.relationship('SenderTag', backref='user', lazy=True, cascade='all, delete-orphan')
+
     def __repr__(self):
         return f'<User {self.email}>'
+
+class SenderTag(db.Model):
+    __tablename__ = 'sender_tags'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    sender_email = db.Column(db.String(255), nullable=False)
+    tag = db.Column(db.String(50), nullable=False)  # 'important', 'urgent', etc.
+    
+    # Unique constraint: one tag per sender per user
+    __table_args__ = (db.UniqueConstraint('user_id', 'sender_email', name='unique_sender_tag'),)
+    def __repr__(self):
+        return f'<SenderTag {self.sender_email} → {self.tag}>'
 
 class Email(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -30,42 +44,34 @@ class Email(db.Model):
     body_html = db.Column(db.Text, nullable=True)
     received_date = db.Column(db.DateTime, nullable=True)
 
-    
     # Phishing detection results
     is_phishing = db.Column(db.Boolean, default=False)
-    phishing_score = db.Column(db.Float, default=0.0)  # 0-100%
-    detection_method = db.Column(db.String(50), default='none')  # 'ml', 'ai', 'rules', 'none'
-    analysis_result = db.Column(db.Text, nullable=True)  # JSON string with detailed analysis
+    phishing_score = db.Column(db.Float, default=0.0)
+    detection_method = db.Column(db.String(50), default='none')
+    analysis_result = db.Column(db.Text, nullable=True)
     
     # Email metadata
     has_attachment = db.Column(db.Boolean, default=False)
-    attachment_info = db.Column(db.Text, nullable=True)  # JSON string with attachment details
-    links = db.Column(db.Text, nullable=True)  # JSON string with links found in email
+    attachment_info = db.Column(db.Text, nullable=True)
+    links = db.Column(db.Text, nullable=True)
     spf_pass = db.Column(db.Boolean, nullable=True)
     dkim_pass = db.Column(db.Boolean, nullable=True)
     dmarc_pass = db.Column(db.Boolean, nullable=True)
-    tag = db.Column(db.String(50), default='none')  # 'none', 'important', 'urgent', 'casual', 'no-reply'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
         return f'<Email {self.subject}>'
     
     def get_links(self):
-        if self.links:
-            return json.loads(self.links)
-        return []
+        return json.loads(self.links) if self.links else []
     
     def get_attachment_info(self):
-        if self.attachment_info:
-            return json.loads(self.attachment_info)
-        return []
+        return json.loads(self.attachment_info) if self.attachment_info else []
     
     def get_analysis_result(self):
-        if self.analysis_result:
-            return json.loads(self.analysis_result)
-        return {} 
+        return json.loads(self.analysis_result) if self.analysis_result else {}
 
-def to_dict(self):
+    def to_dict(self):
         return {
             'id': self.id,
             'message_id': self.message_id,
@@ -85,6 +91,5 @@ def to_dict(self):
             'spf_pass': self.spf_pass,
             'dkim_pass': self.dkim_pass,
             'dmarc_pass': self.dmarc_pass,
-            'tag': self.tag,  # Include the new tag field
             'created_at': self.created_at.isoformat() if self.created_at else None
         }

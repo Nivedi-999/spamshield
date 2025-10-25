@@ -1,3 +1,4 @@
+// src/App.js
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -8,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import EmailDetail from './pages/EmailDetail';
 import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
+import AllEmails from './pages/Emails/AllEmails';  // ← NEW PAGE
 
 // Components
 import Layout from './components/Layout';
@@ -24,7 +26,6 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in
     const checkAuth = async () => {
       try {
         const userData = await getCurrentUser();
@@ -36,11 +37,9 @@ function App() {
         setLoading(false);
       }
     };
-
     checkAuth();
   }, []);
 
-  // Protected route component
   const ProtectedRoute = ({ children }) => {
     if (loading) return <div>Loading...</div>;
     return user ? children : <Navigate to="/login" />;
@@ -52,7 +51,8 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
-          
+
+          {/* DASHBOARD */}
           <Route path="/" element={
             <ProtectedRoute>
               <Layout user={user}>
@@ -60,7 +60,6 @@ function App() {
               </Layout>
             </ProtectedRoute>
           } />
-          
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Layout user={user}>
@@ -68,7 +67,17 @@ function App() {
               </Layout>
             </ProtectedRoute>
           } />
-          
+
+          {/* ALL EMAILS — ADD THIS */}
+          <Route path="/emails" element={
+            <ProtectedRoute>
+              <Layout user={user}>
+                <AllEmails />
+              </Layout>
+            </ProtectedRoute>
+          } />
+
+          {/* EMAIL DETAIL */}
           <Route path="/email/:id" element={
             <ProtectedRoute>
               <Layout user={user}>
@@ -76,7 +85,8 @@ function App() {
               </Layout>
             </ProtectedRoute>
           } />
-          
+
+          {/* SETTINGS */}
           <Route path="/settings" element={
             <ProtectedRoute>
               <Layout user={user}>
@@ -84,7 +94,8 @@ function App() {
               </Layout>
             </ProtectedRoute>
           } />
-          
+
+          {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
@@ -92,4 +103,4 @@ function App() {
   );
 }
 
-export default App; 
+export default App;

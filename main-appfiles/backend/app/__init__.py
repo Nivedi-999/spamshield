@@ -2,7 +2,7 @@ from flask import Flask
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
-from flask_migrate import Migrate  # ADD THIS IMPORT
+from flask_migrate import Migrate  
 import os
 from dotenv import load_dotenv
 

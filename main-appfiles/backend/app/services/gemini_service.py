@@ -32,7 +32,7 @@ def analyze_with_gemini(email_text, metadata=None):
         # Import here to avoid issues if API key is not set
         import google.generativeai as genai
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model = genai.GenerativeModel('gemini-2.0-flash', generation_config={'temperature': 0.0})
         
         # Prepare metadata string
         metadata_str = ""
