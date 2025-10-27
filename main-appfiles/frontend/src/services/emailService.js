@@ -64,10 +64,15 @@ export const getEmailById = async (id) => {
 export const getPhishingTrends = async () => {
   try {
     const response = await axios.get(`${API_URL}/emails/trends`, { withCredentials: true });
+    console.log('Trends loaded:', response.data); // ← DEBUG
     return response.data;
   } catch (error) {
-    console.error('Error fetching trends:', error);
-    throw error;
+    console.error('Failed to load trends:', error);
+    // Fallback: show empty chart
+    return {
+      labels: [],
+      datasets: []
+    };
   }
 };
 

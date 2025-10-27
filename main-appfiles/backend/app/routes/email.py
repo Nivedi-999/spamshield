@@ -198,22 +198,66 @@ def update_sender_tag(email_id):
 @email_bp.route('/trends')
 @login_required
 def get_phishing_trends():
+    # Last 7 days
+    end_date = datetime.utcnow().date()
+    start_date = end_date - timedelta(days=6)
+
+    # Query: Count emails per day, group by phishing/safe
+    results = db.session.query(
+        func.date(Email.received_date).label('day'),
+        func.count(Email.id).label('total'),
+        func.sum(case((Email.is_phishing == True, 1), else_=0)).label('phishing_count')
+    ).filter(
+        Email.user_id == current_user.id,
+        Email.received_date >= start_date,
+        Email.received_date <= end_date + timedelta(days=1)
+    ).group_by(
+        func.date(Email.received_date)
+    ).order_by('day').all()
+
+    # Build full 7-day range
+    labels = []
+    phishing_data = []
+    safe_data = []
+
+    current_day = start_date
+    result_dict = {r.day: r for r in results}
+
+    for _ in range(7):
+        day_str = current_day.strftime('%a')  # Mon, Tue...
+        labels.append(day_str)
+
+        row = result_dict.get(current_day)
+        total = row.total if row else 0
+        phishing = row.phishing_count if row else 0
+        safe = total - phishing
+
+        phishing_pct = round((phishing / total * 100), 1) if total > 0 else 0
+        safe_pct = 100 - phishing_pct
+
+        phishing_data.append(phishing_pct)
+        safe_data.append(safe_pct)
+
+        current_day += timedelta(days=1)
+
     return jsonify({
-        "labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+        "labels": labels,
         "datasets": [
             {
                 "label": "Phishing %",
-                "data": [12, 19, 3, 5, 8, 15, 10],
+                "data": phishing_data,
                 "borderColor": "#f44336",
                 "backgroundColor": "rgba(244, 67, 54, 0.1)",
-                "fill": True
+                "fill": True,
+                "tension": 0.3
             },
             {
                 "label": "Safe %",
-                "data": [88, 81, 97, 95, 92, 85, 90],
+                "data": safe_data,
                 "borderColor": "#4caf50",
                 "backgroundColor": "rgba(76, 175, 80, 0.1)",
-                "fill": True
+                "fill": True,
+                "tension": 0.3
             }
         ]
     })
