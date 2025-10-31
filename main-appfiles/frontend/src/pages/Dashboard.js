@@ -8,6 +8,8 @@ import { Email, Warning, CheckCircle } from '@mui/icons-material';
 import { getEmailStats, getPhishingTrends } from '../services/emailService';
 import { Line, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend, ArcElement } from 'chart.js';
+import axios from 'axios';  // ← ADD THIS
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';  // ← ADD THIS
 
 ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend, ArcElement);
 
@@ -39,6 +41,27 @@ const Dashboard = () => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [statsData, trendsData, heatmapRes] = await Promise.all([
+        getEmailStats(),
+        getPhishingTrends(),
+        axios.get(`${API_URL}/emails/heatmap`, { withCredentials: true })
+      ]);
+      setStats(statsData);
+      setPhishingTrends(trendsData);
+      setHeatmapData(heatmapRes.data);
+    } catch (error) {
+      console.error('Error loading dashboard:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchData();
+}, []);
+
   const pieData = {
     labels: ['Safe Emails', 'Phishing Emails'],
     datasets: [{
@@ -48,13 +71,7 @@ const Dashboard = () => {
     }]
   };
 
-  const onLegendClick = (e, legendItem, legend) => {
-    const index = legendItem.datasetIndex;
-    const ci = legend.chart;
-    const meta = ci.getDatasetMeta(index);
-    meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
-    ci.update();
-  };
+  const [heatmapData, setHeatmapData] = useState([]);
 
   return (
     <Box>
@@ -134,27 +151,64 @@ const Dashboard = () => {
                 </Box>
               </Paper>
             </Grid>
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="h6" gutterBottom>Phishing & Safe Trends</Typography>
-                <Box sx={{ height: 300, display: 'flex', justifyContent: 'center' }}>
-                  {phishingTrends.labels?.length > 0 ? (
-                    <Line
-                      data={phishingTrends}
-                      options={{
-                        maintainAspectRatio: false,
-                        scales: { y: { beginAtZero: true, title: { display: true, text: 'Rate (%)' }, max: 100 } },
-                        plugins: { legend: { display: true, position: 'top', onClick: onLegendClick } },
-                      }}
-                    />
-                  ) : (
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                      <Typography variant="body1" color="textSecondary">No trends data</Typography>
-                    </Box>
-                  )}
-                </Box>
-              </Paper>
-            </Grid>
+            {/* EMAIL ACTIVITY HEATMAP */}
+<Grid item xs={12} md={6}>
+  <Paper sx={{ p: 2 }}>
+    <Typography variant="h6" gutterBottom>Email Activity by Hour</Typography>
+    <Box sx={{ height: 300, position: 'relative' }}>
+      {heatmapData && heatmapData.length > 0 ? (
+        <div style={{ display: 'grid', gridTemplateColumns: '60px repeat(24, 1fr)', gap: '2px', fontSize: '12px' }}>
+          {/* Header: Hours */}
+          <div></div>
+          {Array.from({ length: 24 }, (_, i) => (
+            <div key={i} style={{ textAlign: 'center', fontWeight: 'bold' }}>
+              {i.toString().padStart(2, '0')}
+            </div>
+          ))}
+
+          {/* Rows: Days */}
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, dayIdx) => (
+            <>
+              <div style={{ fontWeight: 'bold', textAlign: 'right', paddingRight: '8px' }}>
+                {day}
+              </div>
+              {Array.from({ length: 24 }, (_, hour) => {
+                const cell = heatmapData.find(d => d.day === dayIdx && d.hour === hour);
+                const count = cell ? cell.total : 0;
+                const phishing = cell ? cell.phishing : 0;
+                const intensity = count === 0 ? 0 : Math.min(count / 10, 1); // scale
+
+                return (
+                  <div
+                    key={hour}
+                    style={{
+                      backgroundColor: count === 0 ? '#f5f5f5' : `rgba(244, 67, 54, ${intensity})`,
+                      height: '30px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: '4px',
+                      color: count > 5 ? 'white' : 'black',
+                      fontWeight: count > 5 ? 'bold' : 'normal',
+                      cursor: 'pointer'
+                    }}
+                    title={`${count} email(s), ${phishing} phishing`}
+                  >
+                    {count > 0 ? count : ''}
+                  </div>
+                );
+              })}
+            </>
+          ))}
+        </div>
+      ) : (
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+          <Typography color="textSecondary">No activity data</Typography>
+        </Box>
+      )}
+    </Box>
+  </Paper>
+</Grid>
           </Grid>
         </>
       )}

@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, Response
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
-from sqlalchemy import or_, func, case, and_
+from sqlalchemy import or_, func, case, and_, true
 from .. import db
 from ..models import Email, SenderTag
 from ..services.email_service import fetch_emails
@@ -119,6 +119,33 @@ def get_emails():
         'current_page': page
     })
 
+@email_bp.route('/heatmap')
+@login_required
+def get_email_heatmap():
+    results = db.session.query(
+        func.strftime('%w', Email.received_date).cast(db.Integer).label('day_of_week'),  # 0=Sun
+        func.strftime('%H', Email.received_date).cast(db.Integer).label('hour'),
+        func.count(Email.id).label('total'),
+        func.sum(case((Email.is_phishing == True, 1), else_=0)).label('phishing_count')
+    ).filter(
+        Email.user_id == current_user.id
+    ).group_by(
+        'day_of_week', 'hour'
+    ).all()
+
+    # Map Sunday=0 → index 6, Mon=1 → 0
+    data = []
+    for r in results:
+        day_idx = r.day_of_week  # 0=Sun, 1=Mon, ..., 6=Sat
+        day_idx = ((r.day_of_week or 0) + 6) % 7  # ← FIXED
+        data.append({
+            'day': day_idx,
+            'hour': r.hour,
+            'total': r.total,
+            'phishing': r.phishing_count or 0
+        })
+
+    return jsonify(data)
 
 @email_bp.route('/<int:email_id>')
 @login_required
@@ -193,52 +220,58 @@ def update_sender_tag(email_id):
         'tag': tag
     })
 
-
+# --------------------------------------------------------------
+#  /emails/trends  – 7-day phishing / safe trend
+# --------------------------------------------------------------
 @email_bp.route('/trends')
 @login_required
 def get_phishing_trends():
-    # Last 7 days
-    end_date = datetime.utcnow().date()
-    start_date = end_date - timedelta(days=6)
+    # ---- 1. Build a clean 7-day window (UTC midnight) ----
+    now   = datetime.utcnow()
+    end   = now.replace(hour=0, minute=0, second=0, microsecond=0)      # today 00:00 UTC
+    start = end - timedelta(days=6)                                   # 6 days ago 00:00 UTC
 
-    # Query: Count emails per day, group by phishing/safe
-    results = db.session.query(
-        func.date(Email.received_date).label('day'),
-        func.count(Email.id).label('total'),
-        func.sum(case((Email.is_phishing == True, 1), else_=0)).label('phishing_count')
-    ).filter(
-        Email.user_id == current_user.id,
-        Email.received_date >= start_date,
-        Email.received_date <= end_date + timedelta(days=1)
-    ).group_by(
-        func.date(Email.received_date)
-    ).order_by('day').all()
+    # ---- 2. Aggregate per day (only emails that really exist) ----
+    results = (
+        db.session.query(
+            func.date(Email.received_date).label('day'),
+            func.count(Email.id).label('total'),
+            func.sum(case((Email.is_phishing == true(), 1), else_=0)).label('phishing_count')
+        )
+        .filter(
+            Email.user_id == current_user.id,
+            Email.received_date >= start,
+            Email.received_date < end + timedelta(days=1)   # <--- IMPORTANT
+        )
+        .group_by(func.date(Email.received_date))
+        .order_by('day')
+        .all()
+    )
 
-    # Build full 7-day range
+    # ---- 3. Build a full 7-day array (empty days = 0 / 100) ----
     labels = []
     phishing_data = []
     safe_data = []
 
-    current_day = start_date
-    result_dict = {r.day: r for r in results}
+    day_map = {r.day: r for r in results}          # fast lookup
 
-    for _ in range(7):
-        day_str = current_day.strftime('%a')  # Mon, Tue...
+    for i in range(7):
+        cur_date = (start + timedelta(days=i)).date()
+        day_str  = cur_date.strftime('%a')        # Mon, Tue, …
+
+        row = day_map.get(cur_date)
+        total   = row.total if row else 0
+        phishing = (row.phishing_count or 0) if row else 0
+        safe    = total - phishing
+
+        phishing_pct = round((phishing / total) * 100, 1) if total else 0.0
+        safe_pct     = round((safe / total) * 100, 1)     if total else 100.0
+
         labels.append(day_str)
-
-        row = result_dict.get(current_day)
-        total = row.total if row else 0
-        phishing = row.phishing_count if row else 0
-        safe = total - phishing
-
-        phishing_pct = round((phishing / total * 100), 1) if total > 0 else 0
-        safe_pct = 100 - phishing_pct
-
         phishing_data.append(phishing_pct)
         safe_data.append(safe_pct)
 
-        current_day += timedelta(days=1)
-
+    # ---- 4. Return ChartJS-ready payload ----
     return jsonify({
         "labels": labels,
         "datasets": [
@@ -246,17 +279,19 @@ def get_phishing_trends():
                 "label": "Phishing %",
                 "data": phishing_data,
                 "borderColor": "#f44336",
-                "backgroundColor": "rgba(244, 67, 54, 0.1)",
+                "backgroundColor": "rgba(244,67,54,0.1)",
                 "fill": True,
-                "tension": 0.3
+                "tension": 0.3,
+                "pointRadius": 5
             },
             {
                 "label": "Safe %",
                 "data": safe_data,
                 "borderColor": "#4caf50",
-                "backgroundColor": "rgba(76, 175, 80, 0.1)",
+                "backgroundColor": "rgba(76,175,80,0.1)",
                 "fill": True,
-                "tension": 0.3
+                "tension": 0.3,
+                "pointRadius": 5
             }
         ]
     })
