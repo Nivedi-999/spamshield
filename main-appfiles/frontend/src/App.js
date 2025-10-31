@@ -9,7 +9,11 @@ import Dashboard from './pages/Dashboard';
 import EmailDetail from './pages/EmailDetail';
 import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
-import AllEmails from './pages/Emails/AllEmails';  // ← NEW PAGE
+import AllEmails from './pages/Emails/AllEmails';
+import ImportantEmails from './pages/Emails/ImportantEmails';
+import UrgentEmails from './pages/Emails/UrgentEmails';        // ← ADDED
+import CasualEmails from './pages/Emails/CasualEmails';        // ← ADDED
+import NoReplyEmails from './pages/Emails/NoReplyEmails';      // ← ADDED
 
 // Components
 import Layout from './components/Layout';
@@ -68,11 +72,47 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* ALL EMAILS — ADD THIS */}
+          {/* ALL EMAILS */}
           <Route path="/emails" element={
             <ProtectedRoute>
               <Layout user={user}>
                 <AllEmails />
+              </Layout>
+            </ProtectedRoute>
+          } />
+
+          {/* IMPORTANT EMAILS */}
+          <Route path="/emails/important" element={
+            <ProtectedRoute>
+              <Layout user={user}>
+                <ImportantEmails />
+              </Layout>
+            </ProtectedRoute>
+          } />
+
+          {/* URGENT EMAILS */}
+          <Route path="/emails/urgent" element={
+            <ProtectedRoute>
+              <Layout user={user}>
+                <UrgentEmails />
+              </Layout>
+            </ProtectedRoute>
+          } />
+
+          {/* CASUAL EMAILS */}
+          <Route path="/emails/casual" element={
+            <ProtectedRoute>
+              <Layout user={user}>
+                <CasualEmails />
+              </Layout>
+            </ProtectedRoute>
+          } />
+
+          {/* NO-REPLY EMAILS */}
+          <Route path="/emails/no-reply" element={
+            <ProtectedRoute>
+              <Layout user={user}>
+                <NoReplyEmails />
               </Layout>
             </ProtectedRoute>
           } />

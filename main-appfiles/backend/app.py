@@ -3,13 +3,10 @@ from app.routes.auth import setup_oauth
 import os
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
-# Create Flask app
 app = create_app()
 
-# Set up OAuth
 with app.app_context():
     setup_oauth(app)
 

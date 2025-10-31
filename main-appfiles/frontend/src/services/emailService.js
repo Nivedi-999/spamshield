@@ -100,17 +100,17 @@ export const getEmailStats = async () => {
 
 // UPDATE TAG
 export const updateEmailTag = async (emailId, tag) => {
-  const token = localStorage.getItem('token');
-  const response = await fetch(`${API_URL}/emails/${emailId}/tag`, {
-    method: 'PATCH',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ tag: tag || null }),
-  });
-  if (!response.ok) throw new Error('Failed to update tag');
-  return response.json();
+  try {
+    const response = await axios.patch(
+      `${API_URL}/emails/${emailId}/tag`,
+      { tag: tag || null },
+      { withCredentials: true }
+    );
+    return response.data;
+  } catch (error) {
+    const msg = error.response?.data?.error || 'Failed to update tag';
+    throw new Error(msg);
+  }
 };
 
 // AI ANALYSIS

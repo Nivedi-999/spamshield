@@ -1,33 +1,14 @@
 // src/components/Layout.js
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
-  AppBar,
-  Box,
-  CssBaseline,
-  Divider,
-  Drawer,
-  IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Toolbar,
-  Typography,
-  Avatar,
-  Menu,
-  MenuItem,
-  Button,
-  useTheme,
-  ListItemText as MuiListItemText,
+  AppBar, Box, CssBaseline, Divider, Drawer, IconButton, List,
+  ListItem, ListItemButton, ListItemIcon, ListItemText, Toolbar,
+  Typography, Avatar, Menu, MenuItem, Button, useTheme
 } from '@mui/material';
 import {
-  Menu as MenuIcon,
-  Dashboard as DashboardIcon,
-  Refresh as RefreshIcon,
-  ExitToApp as LogoutIcon,
-  Label as LabelIcon,
+  Menu as MenuIcon, Dashboard as DashboardIcon, Refresh as RefreshIcon,
+  ExitToApp as LogoutIcon, LabelImportant, PriorityHigh, Coffee, Reply, Mail
 } from '@mui/icons-material';
 import { TagFilterContext } from '../contexts/TagFilterContext';
 import { logout } from '../services/authService';
@@ -36,6 +17,14 @@ import ThemeToggle from './ThemeToggle';
 import Logo from './Logo';
 
 const drawerWidth = 240;
+
+const tagConfig = {
+  all: { label: 'All Emails', path: '/emails', icon: <Mail /> },
+  important: { label: 'Important', path: '/emails/important', icon: <LabelImportant /> },
+  urgent: { label: 'Urgent', path: '/emails/urgent', icon: <PriorityHigh /> },
+  casual: { label: 'Casual', path: '/emails/casual', icon: <Coffee /> },
+  'no-reply': { label: 'No Reply', path: '/emails/no-reply', icon: <Reply /> },
+};
 
 const Layout = ({ user, children }) => {
   const navigate = useNavigate();
@@ -67,7 +56,6 @@ const Layout = ({ user, children }) => {
     }
   };
 
-  // REUSABLE STYLES
   const selectedStyle = {
     borderRadius: 2,
     '&.Mui-selected': {
@@ -109,7 +97,7 @@ const Layout = ({ user, children }) => {
             width: 64,
             height: 64,
             mb: 1,
-            boxShadow: '0 4px  zehnpx rgba(0,0,0,0.1)',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
             border: '2px solid',
             borderColor: 'primary.main',
           }}
@@ -125,6 +113,7 @@ const Layout = ({ user, children }) => {
       <Divider sx={{ mb: 2 }} />
 
       <List sx={{ flexGrow: 1, px: 1 }}>
+        {/* DASHBOARD */}
         <ListItem disablePadding sx={{ mb: 1 }}>
           <ListItemButton
             selected={location.pathname === '/dashboard' || location.pathname === '/'}
@@ -144,53 +133,34 @@ const Layout = ({ user, children }) => {
             />
           </ListItemButton>
         </ListItem>
-      </List>
 
-      {/* TAG FILTERS — FIXED */}
-      {['all', 'important', 'urgent', 'casual', 'no-reply'].map((tag) => {
-        const getLabel = () => {
-          switch (tag) {
-            case 'all': return 'All Emails';
-            case 'important': return 'Important';
-            case 'urgent': return 'Urgent';
-            case 'casual': return 'Casual';
-            default: return 'No Reply';
-          }
-        };
-
-        const label = getLabel();
-
-        const handleClick = () => {
-          setSelectedTag(tag);
-          if (tag === 'all') {
-            navigate('/emails');
-          }
-        };
-
-        return (
+        {/* TAG FILTERS */}
+        {Object.entries(tagConfig).map(([tag, config]) => (
           <ListItem key={tag} disablePadding sx={{ mb: 1 }}>
             <ListItemButton
-              selected={selectedTag === tag}
-              onClick={handleClick}
+              component={Link}
+              to={config.path}
+              selected={location.pathname === config.path}
+              onClick={() => setSelectedTag(tag)}
               sx={selectedStyle}
             >
               <ListItemIcon>
-                <LabelIcon
-                  fontSize="small"
-                  color={selectedTag === tag ? 'primary' : 'inherit'}
-                />
+                {React.cloneElement(config.icon, {
+                  fontSize: 'small',
+                  color: location.pathname === config.path ? 'primary' : 'inherit'
+                })}
               </ListItemIcon>
               <ListItemText
-                primary={label}
+                primary={config.label}
                 primaryTypographyProps={{
-                  fontWeight: selectedTag === tag ? 600 : 400,
+                  fontWeight: location.pathname === config.path ? 600 : 400,
                   fontSize: '0.9375rem',
                 }}
               />
             </ListItemButton>
           </ListItem>
-        );
-      })}
+        ))}
+      </List>
 
       <Divider sx={{ mx: 2 }} />
 
@@ -324,7 +294,7 @@ const Layout = ({ user, children }) => {
                 <ListItemIcon>
                   <LogoutIcon fontSize="small" />
                 </ListItemIcon>
-                <MuiListItemText>Logout</MuiListItemText>
+                <ListItemText>Logout</ListItemText>
               </MenuItem>
             </Menu>
           </Toolbar>

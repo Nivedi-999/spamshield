@@ -9,8 +9,8 @@ import {
   DialogContent, DialogTitle, ToggleButtonGroup, ToggleButton,
   DialogContentText
 } from '@mui/material';
-import { MoreVert, Refresh, Label } from '@mui/icons-material'; // ← SyncIcon REMOVED
-import { getEmails, updateEmailStatus, updateEmailTag } from '../../services/emailService'; // ← syncEmails REMOVED
+import { MoreVert, Refresh, Label } from '@mui/icons-material'; 
+import { getEmails, updateEmailStatus, updateEmailTag } from '../../services/emailService'; 
 import AdvancedSearch from '../../components/AdvancedSearch';
 
 const AllEmails = () => {

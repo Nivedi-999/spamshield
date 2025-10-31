@@ -126,7 +126,6 @@ def get_email(email_id):
     """Get details for a specific email"""
     email = Email.query.filter_by(id=email_id, user_id=current_user.id).first_or_404()
     
-    # GET TAG FROM SenderTag
     sender_tag = SenderTag.query.filter_by(
         user_id=current_user.id,
         sender_email=email.sender
@@ -152,7 +151,7 @@ def get_email(email_id):
         'spf_pass': email.spf_pass,
         'dkim_pass': email.dkim_pass,
         'dmarc_pass': email.dmarc_pass,
-        'tag': tag  # FIXED
+        'tag': tag  
     }
     
     return jsonify(email_data)

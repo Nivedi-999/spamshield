@@ -24,8 +24,8 @@ def create_app():
              "origins": [os.environ.get('FRONTEND_URL', 'http://localhost:3000')],
              "supports_credentials": True
          }},
-         expose_headers=["Content-Type", "X-CSRFToken"],
-         allow_headers=["Content-Type", "X-CSRFToken"],
+         expose_headers=["Content-Type", "Authorization", "X-CSRFToken", "Access-Control-Allow-Credentials"],
+         allow_headers=["Content-Type", "Authorization", "X-CSRFToken", "Access-Control-Allow-Credentials"],
     )
     
     # Configure the app
